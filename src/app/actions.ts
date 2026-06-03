@@ -12,34 +12,80 @@ import { generateToken } from "@/lib/tokens";
 const createSchema = z.object({
   organizer_name: z.string().min(1),
   title: z.string().min(1),
-  starts_at: z.string().min(1),
-  duration_min: z.coerce.number().int().positive(),
   location: z.string().min(1),
   court_numbers: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  device_token: z.string().min(1),
 });
 
 export async function createSessionAction(formData: FormData) {
-  const value = createSchema.parse(Object.fromEntries(formData));
+  const raw = Object.fromEntries(formData);
+  const value = createSchema.parse(raw);
+  const optionStarts = formData.getAll("option_starts_at").map(String);
+  const optionDurations = formData.getAll("option_duration_min").map(Number);
+  const availableIndexes = new Set(
+    formData
+      .getAll("organizer_available_index")
+      .map((item) => Number(item))
+      .filter(Number.isInteger)
+  );
+  const validDate = (value: string) => !Number.isNaN(new Date(value).getTime());
+  const options = optionStarts
+    .map((startsAt, index) => ({
+      starts_at: startsAt,
+      duration_min: optionDurations[index],
+      index,
+      label: `Option ${index + 1}`,
+    }))
+    .filter(
+      (option) =>
+        option.starts_at &&
+        validDate(option.starts_at) &&
+        Number.isInteger(option.duration_min) &&
+        option.duration_min > 0
+    );
+
+  if (options.length < 2) redirect("/?error=options");
+
   const playerId = await currentPlayerId();
   const session = await db.createSession({
     manage_token: generateToken(),
     guest_token: generateToken(),
     title: value.title,
-    starts_at: new Date(value.starts_at).toISOString(),
-    duration_min: value.duration_min,
+    starts_at: null,
+    duration_min: null,
     location: value.location,
     court_numbers: value.court_numbers || null,
     notes: value.notes || null,
+    lifecycle: "draft",
   });
 
-  await db.insertParticipant({
-    session_id: session.id,
-    name: value.organizer_name,
-    rsvp: "going",
-    participant_token: generateToken(),
-    player_id: playerId,
-  });
+  const createdOptions = await db.createSessionTimeOptions(
+    session.id,
+    options.map((option) => ({
+      starts_at: new Date(option.starts_at).toISOString(),
+      duration_min: option.duration_min,
+      label: option.label,
+    }))
+  );
+  const optionIdsByLabel = new Map(
+    createdOptions.map((option) => [option.label, option.id])
+  );
+  const selectedOptionIds = options
+    .filter((option) => availableIndexes.has(option.index))
+    .map((option) => optionIdsByLabel.get(option.label))
+    .filter((optionId): optionId is string => Boolean(optionId));
+
+  if (selectedOptionIds.length > 0) {
+    await db.replaceTimeOptionVotes({
+      session_id: session.id,
+      name: value.organizer_name,
+      participant_token: value.device_token,
+      player_id: playerId,
+      previous_identity: null,
+      session_time_option_ids: selectedOptionIds,
+    });
+  }
 
   redirect(`/m/${session.manage_token}?created=1`);
 }
