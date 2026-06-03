@@ -5,10 +5,13 @@ import { getSessionByGuestToken, listParticipants } from "@/lib/db";
 
 export default async function GuestPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ guestToken: string }>;
+  searchParams: Promise<{ submitted?: string }>;
 }) {
   const { guestToken } = await params;
+  const { submitted } = await searchParams;
   const session = await getSessionByGuestToken(guestToken);
   if (!session) notFound();
 
@@ -42,6 +45,11 @@ export default async function GuestPage({
       {session.notes && <p className="text-sm text-gray-600">{session.notes}</p>}
 
       <h2 className="mt-4 font-semibold">RSVP</h2>
+      {submitted === "1" && (
+        <p className="mb-2 rounded bg-emerald-100 p-2 text-sm text-emerald-900">
+          RSVP submitted.
+        </p>
+      )}
       <RsvpForm
         guestToken={guestToken}
         disabled={session.status === "cancelled"}

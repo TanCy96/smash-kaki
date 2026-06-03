@@ -1,13 +1,30 @@
+import Link from "next/link";
 import { createSessionAction } from "./actions";
 
 export default function CreatePage() {
   return (
     <main className="mx-auto max-w-md p-4">
-      <h1 className="mb-4 text-2xl font-bold">SmashKaki</h1>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">SmashKaki</h1>
+        <div className="flex gap-3 text-sm">
+          <Link href="/login" className="text-emerald-700">
+            Log in
+          </Link>
+          <Link href="/register" className="text-emerald-700">
+            Register
+          </Link>
+        </div>
+      </div>
       <p className="mb-4 text-sm text-gray-600">
         Set up a badminton session and share the link.
       </p>
       <form action={createSessionAction} className="flex flex-col gap-3">
+        <input
+          name="organizer_name"
+          placeholder="Your name"
+          required
+          className="rounded border p-2"
+        />
         <input
           name="title"
           placeholder="Session title (e.g. Friday Smash)"

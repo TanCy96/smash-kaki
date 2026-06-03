@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { forgotPasswordAction } from "@/app/actions";
 
 export default function Forgot() {
@@ -16,6 +17,9 @@ export default function Forgot() {
           Send reset link
         </button>
       </form>
+      <Link href="/login" className="mt-3 inline-block text-sm text-emerald-700">
+        Back to login
+      </Link>
     </main>
   );
 }

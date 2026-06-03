@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { registerAction } from "@/app/actions";
 
 export default function Register() {
@@ -30,6 +31,14 @@ export default function Register() {
           Register
         </button>
       </form>
+      <div className="mt-3 flex justify-between gap-3 text-sm">
+        <Link href="/login" className="text-emerald-700">
+          Already have an account?
+        </Link>
+        <Link href="/" className="text-gray-600">
+          Back
+        </Link>
+      </div>
     </main>
   );
 }

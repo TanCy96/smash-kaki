@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import * as db from "@/lib/db";
@@ -8,6 +9,7 @@ import { currentPlayerId, serverAuth } from "@/lib/supabase-auth";
 import { generateToken } from "@/lib/tokens";
 
 const createSchema = z.object({
+  organizer_name: z.string().min(1),
   title: z.string().min(1),
   starts_at: z.string().min(1),
   duration_min: z.coerce.number().int().positive(),
@@ -18,6 +20,7 @@ const createSchema = z.object({
 
 export async function createSessionAction(formData: FormData) {
   const value = createSchema.parse(Object.fromEntries(formData));
+  const playerId = await currentPlayerId();
   const session = await db.createSession({
     manage_token: generateToken(),
     guest_token: generateToken(),
@@ -27,6 +30,14 @@ export async function createSessionAction(formData: FormData) {
     location: value.location,
     court_numbers: value.court_numbers || null,
     notes: value.notes || null,
+  });
+
+  await db.insertParticipant({
+    session_id: session.id,
+    name: value.organizer_name,
+    rsvp: "going",
+    participant_token: generateToken(),
+    player_id: playerId,
   });
 
   redirect(`/m/${session.manage_token}?created=1`);
@@ -68,6 +79,9 @@ export async function rsvpAction(formData: FormData) {
       player_id: playerId,
     });
   }
+
+  revalidatePath(`/s/${value.guest_token}`);
+  redirect(`/s/${value.guest_token}?submitted=1`);
 }
 
 const editSchema = z.object({
