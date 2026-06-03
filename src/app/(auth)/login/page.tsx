@@ -4,9 +4,9 @@ import { loginAction } from "@/app/actions";
 export default async function Login({
   searchParams,
 }: {
-  searchParams: Promise<{ reset?: string }>;
+  searchParams: Promise<{ reset?: string; error?: string }>;
 }) {
-  const { reset } = await searchParams;
+  const { reset, error } = await searchParams;
 
   return (
     <main className="mx-auto max-w-sm p-4">
@@ -14,6 +14,11 @@ export default async function Login({
       {reset === "sent" && (
         <p className="mb-3 rounded bg-emerald-100 p-2 text-sm text-emerald-900">
           Password reset email sent.
+        </p>
+      )}
+      {error && (
+        <p className="mb-3 rounded bg-red-50 p-2 text-sm text-red-800">
+          {error}
         </p>
       )}
       <form action={loginAction} className="flex flex-col gap-2">

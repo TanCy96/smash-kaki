@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
-import type { Participant, Rsvp, Session } from "./types";
+import type { Participant, Profile, Rsvp, Session } from "./types";
 
 export const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,6 +47,15 @@ export async function getSessionByManageToken(
     .eq("manage_token", token)
     .maybeSingle();
   return (data as Session) ?? null;
+}
+
+export async function getProfile(id: string): Promise<Profile | null> {
+  const { data } = await admin
+    .from("profiles")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  return (data as Profile) ?? null;
 }
 
 export async function updateSessionDetails(

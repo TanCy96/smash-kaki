@@ -18,10 +18,10 @@ export default async function ManagePage({
   searchParams,
 }: {
   params: Promise<{ manageToken: string }>;
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; saved?: string }>;
 }) {
   const { manageToken } = await params;
-  const { created } = await searchParams;
+  const { created, saved } = await searchParams;
   const session = await getSessionByManageToken(manageToken);
   if (!session) notFound();
 
@@ -45,6 +45,11 @@ export default async function ManagePage({
       {created && (
         <p className="rounded bg-emerald-100 p-2 text-emerald-900">
           Session created! Share the guest link below.
+        </p>
+      )}
+      {saved && (
+        <p className="mt-2 rounded bg-emerald-100 p-2 text-emerald-900">
+          Changes saved.
         </p>
       )}
 

@@ -1,11 +1,17 @@
 import Link from "next/link";
-import { createSessionAction } from "./actions";
+import { createSessionAction, logoutAction } from "./actions";
+import { getProfile } from "@/lib/db";
+import { currentPlayerId } from "@/lib/supabase-auth";
 
 const inputClass =
   "w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-950 shadow-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100";
 const labelClass = "flex flex-col gap-1 text-sm font-medium text-gray-700";
 
-export default function CreatePage() {
+export default async function CreatePage() {
+  const playerId = await currentPlayerId();
+  const profile = playerId ? await getProfile(playerId) : null;
+  const displayName = profile?.display_name ?? "";
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-gray-950">
       <section className="mx-auto max-w-md">
@@ -16,14 +22,26 @@ export default function CreatePage() {
               Plan a session, share a link, split the cost.
             </p>
           </div>
-          <div className="flex gap-3 text-sm font-medium">
-            <Link href="/login" className="text-emerald-700">
-              Log in
-            </Link>
-            <Link href="/register" className="text-emerald-700">
-              Register
-            </Link>
-          </div>
+          {playerId ? (
+            <form
+              action={logoutAction}
+              className="flex shrink-0 items-center gap-3 text-sm"
+            >
+              <span className="max-w-32 truncate font-medium text-gray-700">
+                {displayName || "Signed in"}
+              </span>
+              <button className="font-medium text-emerald-700">Log out</button>
+            </form>
+          ) : (
+            <div className="flex gap-3 text-sm font-medium">
+              <Link href="/login" className="text-emerald-700">
+                Log in
+              </Link>
+              <Link href="/register" className="text-emerald-700">
+                Register
+              </Link>
+            </div>
+          )}
         </div>
 
         <form
@@ -35,6 +53,7 @@ export default function CreatePage() {
             <input
               name="organizer_name"
               placeholder="Alex"
+              defaultValue={displayName}
               required
               className={inputClass}
             />

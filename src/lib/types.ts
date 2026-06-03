@@ -28,3 +28,9 @@ export interface Participant {
   player_id: string | null;
   created_at: string;
 }
+
+export interface Profile {
+  id: string;
+  display_name: string;
+  created_at: string;
+}

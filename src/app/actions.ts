@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import * as db from "@/lib/db";
+import { authErrorMessage, authErrorRedirectPath } from "@/lib/auth-errors";
 import { resolveIdentity } from "@/lib/identity";
 import { currentPlayerId, serverAuth } from "@/lib/supabase-auth";
 import { generateToken } from "@/lib/tokens";
@@ -97,7 +98,7 @@ const editSchema = z.object({
 export async function editSessionAction(formData: FormData) {
   const value = editSchema.parse(Object.fromEntries(formData));
   const session = await db.getSessionByManageToken(value.manage_token);
-  if (!session) return;
+  if (!session) redirect(`/m/${value.manage_token}`);
 
   await db.updateSessionDetails(session.id, {
     title: value.title,
@@ -107,6 +108,10 @@ export async function editSessionAction(formData: FormData) {
     court_numbers: value.court_numbers || null,
     notes: value.notes || null,
   });
+
+  revalidatePath(`/m/${value.manage_token}`);
+  revalidatePath(`/s/${session.guest_token}`);
+  redirect(`/m/${value.manage_token}?saved=details`);
 }
 
 export async function cancelSessionAction(formData: FormData) {
@@ -114,16 +119,23 @@ export async function cancelSessionAction(formData: FormData) {
   const session = await db.getSessionByManageToken(manageToken);
   if (session) {
     await db.updateSessionDetails(session.id, { status: "cancelled" });
+    revalidatePath(`/m/${manageToken}`);
+    revalidatePath(`/s/${session.guest_token}`);
   }
+
+  redirect(`/m/${manageToken}?saved=cancelled`);
 }
 
 export async function verifyAttendanceAction(formData: FormData) {
   const manageToken = String(formData.get("manage_token"));
   const session = await db.getSessionByManageToken(manageToken);
-  if (!session) return;
+  if (!session) redirect(`/m/${manageToken}`);
 
   const attendedIds = formData.getAll("attended").map(String);
   await db.setAttendance(session.id, attendedIds);
+  revalidatePath(`/m/${manageToken}`);
+  revalidatePath(`/s/${session.guest_token}`);
+  redirect(`/m/${manageToken}?saved=attendance`);
 }
 
 const costSchema = z.object({
@@ -136,13 +148,17 @@ const costSchema = z.object({
 export async function setCostAction(formData: FormData) {
   const value = costSchema.parse(Object.fromEntries(formData));
   const session = await db.getSessionByManageToken(value.manage_token);
-  if (!session) return;
+  if (!session) redirect(`/m/${value.manage_token}`);
 
   await db.setSessionCost(session.id, {
     court_cost: value.court_cost ?? null,
     shuttles_used: value.shuttles_used ?? null,
     price_per_shuttle: value.price_per_shuttle ?? null,
   });
+
+  revalidatePath(`/m/${value.manage_token}`);
+  revalidatePath(`/s/${session.guest_token}`);
+  redirect(`/m/${value.manage_token}?saved=cost`);
 }
 
 export async function registerAction(formData: FormData) {
@@ -151,14 +167,22 @@ export async function registerAction(formData: FormData) {
   const displayName = String(formData.get("display_name"));
   const supabase = await serverAuth();
   const { data, error } = await supabase.auth.signUp({ email, password });
-  if (error) throw error;
-
-  if (data.user) {
-    await db.admin
-      .from("profiles")
-      .insert({ id: data.user.id, display_name: displayName });
+  if (error) {
+    redirect(authErrorRedirectPath("/register", authErrorMessage(error)));
   }
 
+  if (data.user) {
+    const { error: profileError } = await db.admin
+      .from("profiles")
+      .insert({ id: data.user.id, display_name: displayName });
+    if (profileError) {
+      redirect(
+        authErrorRedirectPath("/register", authErrorMessage(profileError))
+      );
+    }
+  }
+
+  revalidatePath("/");
   redirect("/");
 }
 
@@ -168,8 +192,11 @@ export async function loginAction(formData: FormData) {
     email: String(formData.get("email")),
     password: String(formData.get("password")),
   });
-  if (error) throw error;
+  if (error) {
+    redirect(authErrorRedirectPath("/login", authErrorMessage(error)));
+  }
 
+  revalidatePath("/");
   redirect("/");
 }
 
@@ -177,15 +204,22 @@ export async function logoutAction() {
   const supabase = await serverAuth();
   await supabase.auth.signOut();
 
+  revalidatePath("/");
   redirect("/");
 }
 
 export async function forgotPasswordAction(formData: FormData) {
   const supabase = await serverAuth();
   const base = process.env.NEXT_PUBLIC_BASE_URL ?? "";
-  await supabase.auth.resetPasswordForEmail(String(formData.get("email")), {
-    redirectTo: `${base}/login`,
-  });
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    String(formData.get("email")),
+    {
+      redirectTo: `${base}/login`,
+    }
+  );
+  if (error) {
+    redirect(authErrorRedirectPath("/forgot-password", authErrorMessage(error)));
+  }
 
   redirect("/login?reset=sent");
 }
