@@ -3,6 +3,7 @@ import { RsvpForm } from "@/components/RsvpForm";
 import { TimePollForm } from "@/components/TimePollForm";
 import { TimePollSummary } from "@/components/TimePollSummary";
 import { computeCost } from "@/lib/cost";
+import { formatMalaysiaDateTime } from "@/lib/datetime";
 import {
   getSessionByGuestToken,
   listParticipants,
@@ -82,8 +83,7 @@ export default async function GuestPage({
       )}
       <h1 className="text-2xl font-bold">{session.title}</h1>
       <p>
-        {new Date(session.starts_at).toLocaleString()} - {session.duration_min}{" "}
-        min
+        {formatMalaysiaDateTime(session.starts_at)} - {session.duration_min} min
       </p>
       <p>
         {session.location}

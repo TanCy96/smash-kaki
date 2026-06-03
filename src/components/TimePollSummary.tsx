@@ -1,3 +1,4 @@
+import { formatMalaysiaDateTime } from "@/lib/datetime";
 import type { SessionTimeOptionWithVotes } from "@/lib/types";
 
 export function TimePollSummary({
@@ -15,7 +16,7 @@ export function TimePollSummary({
           <div className="flex items-start justify-between gap-3">
             <div>
               <h3 className="font-semibold text-gray-950">
-                {new Date(option.starts_at).toLocaleString()}
+                {formatMalaysiaDateTime(option.starts_at)}
               </h3>
               <p className="text-sm text-gray-600">
                 {option.duration_min} min

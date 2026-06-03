@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { timePollVoteAction } from "@/app/actions";
+import { formatMalaysiaDateTime } from "@/lib/datetime";
 import type { SessionTimeOptionWithVotes } from "@/lib/types";
 import { deviceToken } from "./device-token";
 
@@ -49,7 +50,7 @@ export function TimePollForm({
             />
             <span>
               <span className="block font-medium text-gray-950">
-                {new Date(option.starts_at).toLocaleString()}
+                {formatMalaysiaDateTime(option.starts_at)}
               </span>
               <span className="block text-gray-600">
                 {option.duration_min} min

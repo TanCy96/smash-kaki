@@ -117,7 +117,13 @@ const rsvpSchema = z.object({
 export async function rsvpAction(formData: FormData) {
   const value = rsvpSchema.parse(Object.fromEntries(formData));
   const session = await db.getSessionByGuestToken(value.guest_token);
-  if (!session || session.status === "cancelled") return;
+  if (
+    !session ||
+    session.status === "cancelled" ||
+    session.lifecycle !== "finalized"
+  ) {
+    redirect(`/s/${value.guest_token}`);
+  }
 
   const playerId = await currentPlayerId();
   const existing = await db.listParticipants(session.id);
@@ -150,7 +156,7 @@ export async function rsvpAction(formData: FormData) {
 
 const timePollVoteSchema = z.object({
   guest_token: z.string(),
-  name: z.string().min(1),
+  name: z.string().trim().min(1),
   device_token: z.string().min(1),
 });
 

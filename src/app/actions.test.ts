@@ -5,6 +5,9 @@ const revalidatePathMock = vi.hoisted(() => vi.fn());
 const currentPlayerIdMock = vi.hoisted(() => vi.fn());
 const dbMock = vi.hoisted(() => ({
   getSessionByGuestToken: vi.fn(),
+  listParticipants: vi.fn(),
+  insertParticipant: vi.fn(),
+  updateParticipant: vi.fn(),
   listSessionTimeOptions: vi.fn(),
   listTimePollVoters: vi.fn(),
   replaceTimeOptionVotes: vi.fn(),
@@ -34,6 +37,9 @@ describe("timePollVoteAction", () => {
     revalidatePathMock.mockReset();
     currentPlayerIdMock.mockReset();
     dbMock.getSessionByGuestToken.mockReset();
+    dbMock.listParticipants.mockReset();
+    dbMock.insertParticipant.mockReset();
+    dbMock.updateParticipant.mockReset();
     dbMock.listSessionTimeOptions.mockReset();
     dbMock.listTimePollVoters.mockReset();
     dbMock.replaceTimeOptionVotes.mockReset();
@@ -49,7 +55,7 @@ describe("timePollVoteAction", () => {
     };
     const formData = new FormData();
     formData.set("guest_token", "guest-1");
-    formData.set("name", "Alex Updated");
+    formData.set("name", " Alex Updated ");
     formData.set("device_token", "device-1");
     formData.append("time_option_id", "option-2");
     formData.append("time_option_id", "stale-option");
@@ -84,5 +90,43 @@ describe("timePollVoteAction", () => {
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/s/guest-1");
     expect(revalidatePathMock).toHaveBeenCalledWith("/m/manage-1");
+  });
+});
+
+describe("rsvpAction", () => {
+  beforeEach(() => {
+    redirectMock.mockReset();
+    redirectMock.mockImplementation((path: string) => {
+      throw new Error(`redirect:${path}`);
+    });
+    revalidatePathMock.mockReset();
+    currentPlayerIdMock.mockReset();
+    dbMock.getSessionByGuestToken.mockReset();
+    dbMock.listParticipants.mockReset();
+    dbMock.insertParticipant.mockReset();
+    dbMock.updateParticipant.mockReset();
+  });
+
+  it("redirects without writing an RSVP when the session is still a draft poll", async () => {
+    const { rsvpAction } = await import("./actions");
+    const formData = new FormData();
+    formData.set("guest_token", "guest-1");
+    formData.set("name", "Alex");
+    formData.set("device_token", "device-1");
+    formData.set("rsvp", "going");
+
+    dbMock.getSessionByGuestToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "active",
+      lifecycle: "draft",
+    });
+
+    await expect(rsvpAction(formData)).rejects.toThrow("redirect:/s/guest-1");
+
+    expect(dbMock.listParticipants).not.toHaveBeenCalled();
+    expect(dbMock.insertParticipant).not.toHaveBeenCalled();
+    expect(dbMock.updateParticipant).not.toHaveBeenCalled();
   });
 });
