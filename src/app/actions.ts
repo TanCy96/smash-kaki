@@ -290,17 +290,29 @@ export async function editSessionAction(formData: FormData) {
   const value = editSchema.parse(Object.fromEntries(formData));
   const session = await db.getSessionByManageToken(value.manage_token);
   if (!session) redirect(`/m/${value.manage_token}`);
-  const startsAt = malaysiaDateTimeLocalToIso(value.starts_at);
-  if (!startsAt) redirect(`/m/${value.manage_token}`);
 
-  await db.updateSessionDetails(session.id, {
-    title: value.title,
-    starts_at: startsAt,
-    duration_min: value.duration_min,
-    location: value.location,
-    court_numbers: value.court_numbers || null,
-    notes: value.notes || null,
-  });
+  let patch: Parameters<typeof db.updateSessionDetails>[1];
+  if (session.lifecycle === "draft") {
+    patch = {
+      title: value.title,
+      location: value.location,
+      court_numbers: value.court_numbers || null,
+      notes: value.notes || null,
+    };
+  } else {
+    const startsAt = malaysiaDateTimeLocalToIso(value.starts_at);
+    if (!startsAt) redirect(`/m/${value.manage_token}`);
+    patch = {
+      title: value.title,
+      starts_at: startsAt,
+      duration_min: value.duration_min,
+      location: value.location,
+      court_numbers: value.court_numbers || null,
+      notes: value.notes || null,
+    };
+  }
+
+  await db.updateSessionDetails(session.id, patch);
 
   revalidatePath(`/m/${value.manage_token}`);
   revalidatePath(`/s/${session.guest_token}`);

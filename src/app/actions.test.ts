@@ -196,6 +196,84 @@ describe("finalizeTimeOptionAction", () => {
   });
 });
 
+describe("editSessionAction", () => {
+  beforeEach(() => {
+    redirectMock.mockReset();
+    redirectMock.mockImplementation((path: string) => {
+      throw new Error(`redirect:${path}`);
+    });
+    revalidatePathMock.mockReset();
+    dbMock.getSessionByManageToken.mockReset();
+    dbMock.updateSessionDetails.mockReset();
+  });
+
+  it("updates only non-time details for draft sessions", async () => {
+    const { editSessionAction } = await import("./actions");
+    const formData = new FormData();
+    formData.set("manage_token", "manage-1");
+    formData.set("title", "Friday Smash");
+    formData.set("starts_at", "1970-01-01T00:00");
+    formData.set("duration_min", "1");
+    formData.set("location", "ABC Sports Hall");
+    formData.set("court_numbers", "3");
+    formData.set("notes", "Bring shuttles");
+
+    dbMock.getSessionByManageToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "active",
+      lifecycle: "draft",
+    });
+    dbMock.updateSessionDetails.mockResolvedValue(undefined);
+
+    await expect(editSessionAction(formData)).rejects.toThrow(
+      "redirect:/m/manage-1?saved=details"
+    );
+
+    expect(dbMock.updateSessionDetails).toHaveBeenCalledWith("session-1", {
+      title: "Friday Smash",
+      location: "ABC Sports Hall",
+      court_numbers: "3",
+      notes: "Bring shuttles",
+    });
+  });
+
+  it("updates time details for finalized sessions", async () => {
+    const { editSessionAction } = await import("./actions");
+    const formData = new FormData();
+    formData.set("manage_token", "manage-1");
+    formData.set("title", "Friday Smash");
+    formData.set("starts_at", "2026-06-05T20:00");
+    formData.set("duration_min", "120");
+    formData.set("location", "ABC Sports Hall");
+    formData.set("court_numbers", "");
+    formData.set("notes", "");
+
+    dbMock.getSessionByManageToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "active",
+      lifecycle: "finalized",
+    });
+    dbMock.updateSessionDetails.mockResolvedValue(undefined);
+
+    await expect(editSessionAction(formData)).rejects.toThrow(
+      "redirect:/m/manage-1?saved=details"
+    );
+
+    expect(dbMock.updateSessionDetails).toHaveBeenCalledWith("session-1", {
+      title: "Friday Smash",
+      starts_at: "2026-06-05T12:00:00.000Z",
+      duration_min: 120,
+      location: "ABC Sports Hall",
+      court_numbers: null,
+      notes: null,
+    });
+  });
+});
+
 describe("rsvpAction", () => {
   beforeEach(() => {
     redirectMock.mockReset();

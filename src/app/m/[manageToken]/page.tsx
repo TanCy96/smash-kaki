@@ -76,14 +76,39 @@ export default async function ManagePage({
         </div>
 
         <section className="mt-4">
-          <h2 className="font-semibold">Poll details</h2>
-          <p className="text-sm text-gray-700">
-            {session.location}
-            {session.court_numbers ? ` - Court ${session.court_numbers}` : ""}
-          </p>
-          {session.notes && (
-            <p className="text-sm text-gray-600">{session.notes}</p>
-          )}
+          <h2 className="font-semibold">Edit details</h2>
+          <form action={editSessionAction} className="mt-2 flex flex-col gap-2">
+            <input type="hidden" name="manage_token" value={manageToken} />
+            <input type="hidden" name="starts_at" value="1970-01-01T00:00" />
+            <input type="hidden" name="duration_min" value="1" />
+            <input
+              name="title"
+              defaultValue={session.title}
+              required
+              className="rounded border p-2"
+            />
+            <input
+              name="location"
+              defaultValue={session.location}
+              required
+              className="rounded border p-2"
+            />
+            <input
+              name="court_numbers"
+              defaultValue={session.court_numbers ?? ""}
+              placeholder="Court number(s)"
+              className="rounded border p-2"
+            />
+            <textarea
+              name="notes"
+              defaultValue={session.notes ?? ""}
+              placeholder="Notes"
+              className="rounded border p-2"
+            />
+            <button className="rounded bg-emerald-600 p-2 text-white">
+              Save details
+            </button>
+          </form>
         </section>
 
         <section className="mt-4">
