@@ -158,10 +158,12 @@ export async function editSessionAction(formData: FormData) {
   const value = editSchema.parse(Object.fromEntries(formData));
   const session = await db.getSessionByManageToken(value.manage_token);
   if (!session) redirect(`/m/${value.manage_token}`);
+  const startsAt = malaysiaDateTimeLocalToIso(value.starts_at);
+  if (!startsAt) redirect(`/m/${value.manage_token}`);
 
   await db.updateSessionDetails(session.id, {
     title: value.title,
-    starts_at: new Date(value.starts_at).toISOString(),
+    starts_at: startsAt,
     duration_min: value.duration_min,
     location: value.location,
     court_numbers: value.court_numbers || null,
