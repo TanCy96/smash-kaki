@@ -1079,9 +1079,16 @@ git commit -m "feat: manage view (edit, verify, cost)"
 
 ---
 
-## Task 12: Auth pages (register / login / logout / forgot-password)
+## Task 12: Auth (email+password AND Google sign-in)
 
-**Files:** Create `src/app/(auth)/register/page.tsx`, `login/page.tsx`, `forgot-password/page.tsx`, and auth actions in `src/app/actions.ts`.
+**Files:** Create `src/app/(auth)/register/page.tsx`, `login/page.tsx`,
+`forgot-password/page.tsx`, `src/components/GoogleSignInButton.tsx`,
+`src/app/auth/callback/route.ts`, and auth actions in `src/app/actions.ts`.
+
+Two optional account paths: "Continue with Google" (OAuth — no passwords, no
+reset emails) and email+password (with forgot-password). Both end up as a
+Supabase auth user + a `profiles` row; everything downstream (`player_id`) is
+identical regardless of path.
 
 - [ ] **Step 1: Add auth server actions to `src/app/actions.ts`** (append)
 
@@ -1189,18 +1196,101 @@ export default function Forgot() {
 }
 ```
 
-- [ ] **Step 5: Configure Supabase redirect URL** — in Auth → URL Configuration, add
-`http://localhost:3000/login` (and the Vercel URL later) to allowed redirects.
+- [ ] **Step 5: Google sign-in button (client component)**
 
-- [ ] **Step 6: Manual check** — register, log out, log in, request a reset email
-(check inbox), and confirm an RSVP made while logged in links to the account
-(re-RSVP from a *different* browser while logged in updates the same row).
+Create `src/components/GoogleSignInButton.tsx`:
+```tsx
+"use client";
+import { browserAuth } from "@/lib/supabase-browser";
 
-- [ ] **Step 7: Commit** (user runs it)
+export function GoogleSignInButton() {
+  const onClick = async () => {
+    const sb = browserAuth();
+    await sb.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+  };
+  return (
+    <button type="button" onClick={onClick} className="rounded border p-2 font-medium">
+      Continue with Google
+    </button>
+  );
+}
+```
+
+- [ ] **Step 6: OAuth callback route (code exchange + profile upsert)**
+
+Google users never hit `registerAction`, so their `profiles` row is created here
+on first login, using their Google display name.
+
+Create `src/app/auth/callback/route.ts`:
+```ts
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { serverAuth } from "@/lib/supabase-auth";
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  if (code) {
+    const sb = await serverAuth();
+    const { data, error } = await sb.auth.exchangeCodeForSession(code);
+    if (!error && data.user) {
+      const admin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { persistSession: false } }
+      );
+      const name =
+        (data.user.user_metadata.full_name as string | undefined) ??
+        data.user.email ?? "Player";
+      await admin.from("profiles")
+        .upsert({ id: data.user.id, display_name: name }, { onConflict: "id", ignoreDuplicates: true });
+    }
+  }
+  return NextResponse.redirect(new URL("/", url.origin));
+}
+```
+(Reuse the exported `admin` client from `db.ts` after the Task-12 refactor note.)
+
+- [ ] **Step 7: Add the Google button to login + register pages**
+
+In `src/app/(auth)/login/page.tsx` and `register/page.tsx`, import and render
+below the form:
+```tsx
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+// ... inside the <main>, after the form:
+<div className="mt-3"><GoogleSignInButton /></div>
+```
+
+- [ ] **Step 8: Google Cloud setup (manual — human does this once)**
+
+1. console.cloud.google.com → create a project (free).
+2. Configure the OAuth consent screen (External; app name "SmashKaki"; your email).
+3. Create Credentials → OAuth Client ID → type **Web application**.
+4. Authorized JavaScript origins: `http://localhost:3000` (+ Vercel URL later).
+5. Authorized redirect URI: the exact callback shown on Supabase's Google
+   provider page — `https://<project-ref>.supabase.co/auth/v1/callback`.
+6. Copy Client ID + Secret into Supabase → Authentication → Sign In / Up →
+   Google → enable → save.
+
+- [ ] **Step 9: Configure Supabase redirect URLs** — in Auth → URL Configuration,
+add `http://localhost:3000/**` (and the Vercel URL later) to allowed redirects;
+set Site URL to `http://localhost:3000` for dev.
+
+- [ ] **Step 10: Manual check** — (a) register with email, log out, log in,
+request a reset email (check inbox; note the built-in mailer is rate-limited to
+a few emails/hour); (b) "Continue with Google" round-trips and creates a
+`profiles` row with your Google name; (c) an RSVP made while logged in (either
+path) links to the account — re-RSVP from a *different* browser while logged in
+updates the same row.
+
+- [ ] **Step 11: Commit** (user runs it)
 
 ```bash
-git add "src/app/(auth)" src/app/actions.ts
-git commit -m "feat: optional email+password accounts with password reset"
+git add "src/app/(auth)" src/app/auth src/components/GoogleSignInButton.tsx src/app/actions.ts
+git commit -m "feat: optional accounts via Google sign-in and email+password"
 ```
 
 ---

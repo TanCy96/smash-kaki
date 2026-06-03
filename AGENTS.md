@@ -10,13 +10,6 @@ actually attended, and record the cost (court rate + shuttlecocks used) with an
 equal per-head split. Works on phone and PC. Built in Malaysia (currency shown as
 RM; "kaki" = your regular crew).
 
-## Source of truth
-
-**The full implementation plan is in `docs/plans/2026-06-03-smashkaki-mvp.md`.**
-Follow it task-by-task. It contains exact files, complete code, tests, and
-commands. This AGENTS.md is orientation only — the plan is authoritative. If
-anything here conflicts with the plan, the plan wins.
-
 ## Tech stack
 
 - **Next.js 15** (App Router, TypeScript, Node runtime) — one responsive codebase.
@@ -39,8 +32,8 @@ unit-tested. `db.ts` is the only module that touches Supabase data.
 
 ## Hard rules
 
-1. **Do NOT auto-commit.** The human runs every `git commit` themselves. At each
-   "Commit" step in the plan, STOP and tell the human what to commit; do not run it.
+1. **Do NOT push commits.** Commits can be done on each task completion, but do not
+push unless given permission to.
 2. **Service-role key is server-only.** Never import `db.ts` or
    `SUPABASE_SERVICE_ROLE_KEY` into a client component. It must never reach the
    browser. Guest pages must never render the manage token.
@@ -73,14 +66,6 @@ NEXT_PUBLIC_BASE_URL=            # http://localhost:3000 in dev; Vercel URL in p
 
 A `.env.local.example` is committed as a template; the real `.env.local` is not.
 
-## Manual setup the agent CANNOT do (human must do these)
-
-- Create the Supabase project; in **Auth → Email**, DISABLE "Confirm email"
-  (no signup OTP) and copy the three keys into `.env.local`.
-- Run `supabase/schema.sql` in the Supabase SQL editor.
-- Add allowed redirect URLs (localhost + Vercel) in Supabase Auth settings.
-- Create the GitHub repo, push, and connect Vercel (set env vars there too).
-
 ## Data model (3 tables — see `supabase/schema.sql`)
 
 - **sessions** — tokens, title, starts_at, duration_min, location, court_numbers,
@@ -90,8 +75,3 @@ A `.env.local.example` is committed as a template; the real `.env.local` is not.
   purpose; upgradable later.
 - **participants** — session_id, name, rsvp (going/maybe/cant), attended,
   participant_token (device identity), player_id (nullable, set when logged in).
-
-## Out of scope (do not build yet)
-
-Richer profiles/stats, "my sessions" history, organizer accounts, non-equal cost
-splitting, email/SMS invites or reminders.
