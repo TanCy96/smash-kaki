@@ -7,7 +7,11 @@ import * as db from "@/lib/db";
 import { authErrorMessage, authErrorRedirectPath } from "@/lib/auth-errors";
 import { resolveIdentity } from "@/lib/identity";
 import { currentPlayerId, serverAuth } from "@/lib/supabase-auth";
-import { malaysiaDateTimeLocalToIso } from "@/lib/time-poll";
+import {
+  malaysiaDateTimeLocalToIso,
+  resolvePollVoter,
+  selectedOptionIds,
+} from "@/lib/time-poll";
 import { generateToken } from "@/lib/tokens";
 
 const createSchema = z.object({
@@ -141,6 +145,56 @@ export async function rsvpAction(formData: FormData) {
   }
 
   revalidatePath(`/s/${value.guest_token}`);
+  redirect(`/s/${value.guest_token}?submitted=1`);
+}
+
+const timePollVoteSchema = z.object({
+  guest_token: z.string(),
+  name: z.string().min(1),
+  device_token: z.string().min(1),
+});
+
+export async function timePollVoteAction(formData: FormData) {
+  const value = timePollVoteSchema.parse(Object.fromEntries(formData));
+  const session = await db.getSessionByGuestToken(value.guest_token);
+  if (
+    !session ||
+    session.status === "cancelled" ||
+    session.lifecycle !== "draft"
+  ) {
+    redirect(`/s/${value.guest_token}`);
+  }
+
+  const playerId = await currentPlayerId();
+  const options = await db.listSessionTimeOptions(session.id);
+  const validOptionIds = options.map((option) => option.id);
+  const optionIds = selectedOptionIds(
+    formData.getAll("time_option_id").map(String),
+    validOptionIds
+  );
+  const existing = await db.listTimePollVoters(session.id);
+  const match = resolvePollVoter({
+    loggedInPlayerId: playerId,
+    deviceToken: value.device_token,
+    name: value.name,
+    existing,
+  });
+  const previousIdentity =
+    match.kind === "new"
+      ? null
+      : (existing.find((voter) => voter.id === match.voterId) ?? null);
+
+  await db.replaceTimeOptionVotes({
+    session_id: session.id,
+    name: value.name,
+    participant_token: value.device_token,
+    player_id: playerId,
+    previous_identity: previousIdentity,
+    session_time_option_ids: optionIds,
+  });
+
+  revalidatePath(`/s/${value.guest_token}`);
+  revalidatePath(`/m/${session.manage_token}`);
   redirect(`/s/${value.guest_token}?submitted=1`);
 }
 

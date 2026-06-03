@@ -2,18 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { rsvpAction } from "@/app/actions";
-
-function deviceToken(): string {
-  const key = "smashkaki_device_token";
-  let token = localStorage.getItem(key);
-
-  if (!token) {
-    token = crypto.randomUUID();
-    localStorage.setItem(key, token);
-  }
-
-  return token;
-}
+import { deviceToken } from "./device-token";
 
 export function RsvpForm({
   guestToken,
