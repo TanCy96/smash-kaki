@@ -8,7 +8,7 @@ vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({ from: fromMock }),
 }));
 
-import { listTimePollVoters, replaceTimeOptionVotes } from "./db";
+import { deleteSession, listTimePollVoters, replaceTimeOptionVotes } from "./db";
 
 function query(result: unknown) {
   const chain = {
@@ -133,5 +133,22 @@ describe("replaceTimeOptionVotes", () => {
     ).rejects.toThrow("Invalid time option selection.");
 
     expect(deleteQuery.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteSession", () => {
+  beforeEach(() => {
+    fromMock.mockReset();
+  });
+
+  it("deletes a single session by id", async () => {
+    const sessionQuery = query({ error: null });
+    fromMock.mockReturnValue(sessionQuery);
+
+    await deleteSession("session-1");
+
+    expect(fromMock).toHaveBeenCalledWith("sessions");
+    expect(sessionQuery.delete).toHaveBeenCalled();
+    expect(sessionQuery.eq).toHaveBeenCalledWith("id", "session-1");
   });
 });

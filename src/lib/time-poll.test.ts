@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolvePollVoter, selectedOptionIds } from "./time-poll";
+import {
+  malaysiaDateTimeLocalToIso,
+  resolvePollVoter,
+  selectedOptionIds,
+} from "./time-poll";
 import type { PollVoteIdentity } from "./time-poll";
 
 const vote = (over: Partial<PollVoteIdentity>): PollVoteIdentity => ({
@@ -92,5 +96,13 @@ describe("selectedOptionIds", () => {
   it("allows clearing all choices", () => {
     expect(selectedOptionIds([], ["opt-1", "opt-2"])).toEqual([]);
     expect(selectedOptionIds(["invalid"], ["opt-1", "opt-2"])).toEqual([]);
+  });
+});
+
+describe("malaysiaDateTimeLocalToIso", () => {
+  it("parses datetime-local input as Malaysia local time", () => {
+    expect(malaysiaDateTimeLocalToIso("2026-06-03T20:30")).toBe(
+      "2026-06-03T12:30:00.000Z"
+    );
   });
 });

@@ -37,6 +37,11 @@ export async function createSession(input: {
   return data as Session;
 }
 
+export async function deleteSession(id: string): Promise<void> {
+  const { error } = await admin.from("sessions").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function getSessionByGuestToken(
   token: string
 ): Promise<Session | null> {

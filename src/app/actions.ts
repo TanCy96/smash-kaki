@@ -7,6 +7,7 @@ import * as db from "@/lib/db";
 import { authErrorMessage, authErrorRedirectPath } from "@/lib/auth-errors";
 import { resolveIdentity } from "@/lib/identity";
 import { currentPlayerId, serverAuth } from "@/lib/supabase-auth";
+import { malaysiaDateTimeLocalToIso } from "@/lib/time-poll";
 import { generateToken } from "@/lib/tokens";
 
 const createSchema = z.object({
@@ -29,21 +30,24 @@ export async function createSessionAction(formData: FormData) {
       .map((item) => Number(item))
       .filter(Number.isInteger)
   );
-  const validDate = (value: string) => !Number.isNaN(new Date(value).getTime());
   const options = optionStarts
-    .map((startsAt, index) => ({
-      starts_at: startsAt,
-      duration_min: optionDurations[index],
-      index,
-      label: `Option ${index + 1}`,
-    }))
-    .filter(
-      (option) =>
-        option.starts_at &&
-        validDate(option.starts_at) &&
-        Number.isInteger(option.duration_min) &&
-        option.duration_min > 0
-    );
+    .flatMap((startsAt, index) => {
+      const startsAtIso = malaysiaDateTimeLocalToIso(startsAt);
+      const duration = optionDurations[index];
+
+      if (!startsAtIso || !Number.isInteger(duration) || duration <= 0) {
+        return [];
+      }
+
+      return [
+        {
+          starts_at: startsAtIso,
+          duration_min: duration,
+          index,
+          label: `Option ${index + 1}`,
+        },
+      ];
+    });
 
   if (options.length < 2) redirect("/?error=options");
 
@@ -60,31 +64,40 @@ export async function createSessionAction(formData: FormData) {
     lifecycle: "draft",
   });
 
-  const createdOptions = await db.createSessionTimeOptions(
-    session.id,
-    options.map((option) => ({
-      starts_at: new Date(option.starts_at).toISOString(),
-      duration_min: option.duration_min,
-      label: option.label,
-    }))
-  );
-  const optionIdsByLabel = new Map(
-    createdOptions.map((option) => [option.label, option.id])
-  );
-  const selectedOptionIds = options
-    .filter((option) => availableIndexes.has(option.index))
-    .map((option) => optionIdsByLabel.get(option.label))
-    .filter((optionId): optionId is string => Boolean(optionId));
+  try {
+    const createdOptions = await db.createSessionTimeOptions(
+      session.id,
+      options.map((option) => ({
+        starts_at: option.starts_at,
+        duration_min: option.duration_min,
+        label: option.label,
+      }))
+    );
+    const optionIdsByLabel = new Map(
+      createdOptions.map((option) => [option.label, option.id])
+    );
+    const selectedOptionIds = options
+      .filter((option) => availableIndexes.has(option.index))
+      .map((option) => optionIdsByLabel.get(option.label))
+      .filter((optionId): optionId is string => Boolean(optionId));
 
-  if (selectedOptionIds.length > 0) {
-    await db.replaceTimeOptionVotes({
-      session_id: session.id,
-      name: value.organizer_name,
-      participant_token: value.device_token,
-      player_id: playerId,
-      previous_identity: null,
-      session_time_option_ids: selectedOptionIds,
-    });
+    if (selectedOptionIds.length > 0) {
+      await db.replaceTimeOptionVotes({
+        session_id: session.id,
+        name: value.organizer_name,
+        participant_token: value.device_token,
+        player_id: playerId,
+        previous_identity: null,
+        session_time_option_ids: selectedOptionIds,
+      });
+    }
+  } catch (error) {
+    try {
+      await db.deleteSession(session.id);
+    } catch {
+      // Preserve the child-write failure for the caller; cleanup is best effort.
+    }
+    throw error;
   }
 
   redirect(`/m/${session.manage_token}?created=1`);
