@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import * as db from "@/lib/db";
 import { resolveIdentity } from "@/lib/identity";
-import { currentPlayerId } from "@/lib/supabase-auth";
+import { currentPlayerId, serverAuth } from "@/lib/supabase-auth";
 import { generateToken } from "@/lib/tokens";
 
 const createSchema = z.object({
@@ -129,4 +129,49 @@ export async function setCostAction(formData: FormData) {
     shuttles_used: value.shuttles_used ?? null,
     price_per_shuttle: value.price_per_shuttle ?? null,
   });
+}
+
+export async function registerAction(formData: FormData) {
+  const email = String(formData.get("email"));
+  const password = String(formData.get("password"));
+  const displayName = String(formData.get("display_name"));
+  const supabase = await serverAuth();
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) throw error;
+
+  if (data.user) {
+    await db.admin
+      .from("profiles")
+      .insert({ id: data.user.id, display_name: displayName });
+  }
+
+  redirect("/");
+}
+
+export async function loginAction(formData: FormData) {
+  const supabase = await serverAuth();
+  const { error } = await supabase.auth.signInWithPassword({
+    email: String(formData.get("email")),
+    password: String(formData.get("password")),
+  });
+  if (error) throw error;
+
+  redirect("/");
+}
+
+export async function logoutAction() {
+  const supabase = await serverAuth();
+  await supabase.auth.signOut();
+
+  redirect("/");
+}
+
+export async function forgotPasswordAction(formData: FormData) {
+  const supabase = await serverAuth();
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "";
+  await supabase.auth.resetPasswordForEmail(String(formData.get("email")), {
+    redirectTo: `${base}/login`,
+  });
+
+  redirect("/login?reset=sent");
 }
