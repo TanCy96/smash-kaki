@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
+import type { PollVoteIdentity } from "./time-poll";
 import type {
   Participant,
   Profile,
@@ -207,15 +208,11 @@ export async function listSessionTimeOptions(
 }
 
 export async function listTimePollVoters(sessionId: string): Promise<
-  {
-    name: string;
-    participant_token: string;
-    player_id: string | null;
-  }[]
+  PollVoteIdentity[]
 > {
   const { data, error } = await admin
     .from("time_option_votes")
-    .select("name, participant_token, player_id")
+    .select("id, name, participant_token, player_id")
     .eq("session_id", sessionId)
     .order("created_at", { ascending: true });
 
@@ -224,19 +221,29 @@ export async function listTimePollVoters(sessionId: string): Promise<
   const seen = new Set<string>();
   return (
     (data as {
+      id: string;
       name: string;
-      participant_token: string;
+      participant_token: string | null;
       player_id: string | null;
     }[]) ?? []
-  ).filter((identity) => {
-    const key = identity.player_id
-      ? `player:${identity.player_id}`
-      : `device:${identity.participant_token}`;
-    if (seen.has(key)) return false;
+  )
+    .map((identity) => ({
+      id: identity.id,
+      name: identity.name,
+      participantToken: identity.participant_token,
+      playerId: identity.player_id,
+    }))
+    .filter((identity) => {
+      const key = identity.playerId
+        ? `player:${identity.playerId}`
+        : identity.participantToken
+          ? `device:${identity.participantToken}`
+          : `vote:${identity.id}`;
+      if (seen.has(key)) return false;
 
-    seen.add(key);
-    return true;
-  });
+      seen.add(key);
+      return true;
+    });
 }
 
 export async function replaceTimeOptionVotes(input: {
@@ -244,28 +251,47 @@ export async function replaceTimeOptionVotes(input: {
   name: string;
   participant_token: string;
   player_id: string | null;
-  previous_identity: {
-    participant_token: string;
-    player_id: string | null;
-    name: string;
-  } | null;
+  previous_identity: PollVoteIdentity | null;
   session_time_option_ids: string[];
 }): Promise<void> {
+  const selectedOptionIds = [...new Set(input.session_time_option_ids)];
+
+  if (selectedOptionIds.length > 0) {
+    const { data, error } = await admin
+      .from("session_time_options")
+      .select("id")
+      .eq("session_id", input.session_id)
+      .in("id", selectedOptionIds);
+
+    if (error) throw error;
+
+    const validOptionIds = new Set(
+      ((data as { id: string }[]) ?? []).map((option) => option.id)
+    );
+    const hasInvalidSelection = selectedOptionIds.some(
+      (optionId) => !validOptionIds.has(optionId)
+    );
+
+    if (hasInvalidSelection) {
+      throw new Error("Invalid time option selection.");
+    }
+  }
+
   const previous = input.previous_identity;
 
-  if (previous?.player_id) {
+  if (previous?.playerId) {
     const { error } = await admin
       .from("time_option_votes")
       .delete()
       .eq("session_id", input.session_id)
-      .eq("player_id", previous.player_id);
+      .eq("player_id", previous.playerId);
     if (error) throw error;
-  } else if (previous?.participant_token) {
+  } else if (previous?.participantToken) {
     const { error } = await admin
       .from("time_option_votes")
       .delete()
       .eq("session_id", input.session_id)
-      .eq("participant_token", previous.participant_token);
+      .eq("participant_token", previous.participantToken);
     if (error) throw error;
   } else {
     const { error } = await admin
@@ -276,10 +302,10 @@ export async function replaceTimeOptionVotes(input: {
     if (error) throw error;
   }
 
-  if (input.session_time_option_ids.length === 0) return;
+  if (selectedOptionIds.length === 0) return;
 
   const { error } = await admin.from("time_option_votes").insert(
-    input.session_time_option_ids.map((optionId) => ({
+    selectedOptionIds.map((optionId) => ({
       session_id: input.session_id,
       session_time_option_id: optionId,
       name: input.name,
