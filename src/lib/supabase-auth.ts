@@ -15,10 +15,16 @@ export async function serverAuth() {
     {
       cookies: {
         getAll: () => store.getAll(),
-        setAll: (list) =>
-          list.forEach(({ name, value, options }) =>
-            store.set(name, value, options)
-          ),
+        setAll: (list) => {
+          try {
+            list.forEach(({ name, value, options }) =>
+              store.set(name, value, options)
+            );
+          } catch {
+            // cookies() is read-only during Server Component renders; the
+            // refreshed token is persisted on the next Server Action instead.
+          }
+        },
       },
     }
   );
