@@ -204,6 +204,78 @@ export async function timePollVoteAction(formData: FormData) {
   redirect(`/s/${value.guest_token}?submitted=1`);
 }
 
+const finalizeTimeOptionSchema = z.object({
+  manage_token: z.string(),
+  time_option_id: z.string(),
+});
+
+export async function finalizeTimeOptionAction(formData: FormData) {
+  const value = finalizeTimeOptionSchema.parse(Object.fromEntries(formData));
+  const session = await db.getSessionByManageToken(value.manage_token);
+  if (
+    !session ||
+    session.status === "cancelled" ||
+    session.lifecycle !== "draft"
+  ) {
+    redirect(`/m/${value.manage_token}`);
+  }
+
+  const option = await db.getSessionTimeOption(value.time_option_id);
+  if (!option || option.session_id !== session.id) {
+    redirect(`/m/${value.manage_token}`);
+  }
+
+  const votes = await db.listVotesForTimeOption(option.id);
+  const participants = await db.listParticipants(session.id);
+  let knownParticipants = participants;
+
+  for (const vote of votes) {
+    const match = resolveIdentity({
+      loggedInPlayerId: vote.player_id,
+      deviceToken: vote.participant_token,
+      name: vote.name,
+      existing: knownParticipants,
+    });
+
+    if (match.kind === "new") {
+      const inserted = await db.insertParticipant({
+        session_id: session.id,
+        name: vote.name,
+        rsvp: "going",
+        participant_token: vote.participant_token,
+        player_id: vote.player_id,
+      });
+      knownParticipants = [...knownParticipants, inserted];
+    } else {
+      await db.updateParticipant(match.participantId, {
+        name: vote.name,
+        rsvp: "going",
+        player_id: vote.player_id,
+      });
+      knownParticipants = knownParticipants.map((participant) =>
+        participant.id === match.participantId
+          ? {
+              ...participant,
+              name: vote.name,
+              rsvp: "going",
+              player_id: vote.player_id,
+            }
+          : participant
+      );
+    }
+  }
+
+  await db.updateSessionDetails(session.id, {
+    starts_at: option.starts_at,
+    duration_min: option.duration_min,
+    lifecycle: "finalized",
+  });
+
+  revalidatePath(`/m/${value.manage_token}`);
+  revalidatePath(`/s/${session.guest_token}`);
+  redirect(`/m/${value.manage_token}?saved=finalized`);
+}
+
 const editSchema = z.object({
   manage_token: z.string(),
   title: z.string().min(1),

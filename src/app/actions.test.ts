@@ -5,12 +5,16 @@ const revalidatePathMock = vi.hoisted(() => vi.fn());
 const currentPlayerIdMock = vi.hoisted(() => vi.fn());
 const dbMock = vi.hoisted(() => ({
   getSessionByGuestToken: vi.fn(),
+  getSessionByManageToken: vi.fn(),
   listParticipants: vi.fn(),
   insertParticipant: vi.fn(),
   updateParticipant: vi.fn(),
   listSessionTimeOptions: vi.fn(),
   listTimePollVoters: vi.fn(),
   replaceTimeOptionVotes: vi.fn(),
+  getSessionTimeOption: vi.fn(),
+  listVotesForTimeOption: vi.fn(),
+  updateSessionDetails: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -37,12 +41,16 @@ describe("timePollVoteAction", () => {
     revalidatePathMock.mockReset();
     currentPlayerIdMock.mockReset();
     dbMock.getSessionByGuestToken.mockReset();
+    dbMock.getSessionByManageToken.mockReset();
     dbMock.listParticipants.mockReset();
     dbMock.insertParticipant.mockReset();
     dbMock.updateParticipant.mockReset();
     dbMock.listSessionTimeOptions.mockReset();
     dbMock.listTimePollVoters.mockReset();
     dbMock.replaceTimeOptionVotes.mockReset();
+    dbMock.getSessionTimeOption.mockReset();
+    dbMock.listVotesForTimeOption.mockReset();
+    dbMock.updateSessionDetails.mockReset();
   });
 
   it("replaces a returning voter's draft poll choices with canonical previous identity", async () => {
@@ -90,6 +98,101 @@ describe("timePollVoteAction", () => {
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/s/guest-1");
     expect(revalidatePathMock).toHaveBeenCalledWith("/m/manage-1");
+  });
+});
+
+describe("finalizeTimeOptionAction", () => {
+  beforeEach(() => {
+    redirectMock.mockReset();
+    redirectMock.mockImplementation((path: string) => {
+      throw new Error(`redirect:${path}`);
+    });
+    revalidatePathMock.mockReset();
+    currentPlayerIdMock.mockReset();
+    dbMock.getSessionByManageToken.mockReset();
+    dbMock.getSessionTimeOption.mockReset();
+    dbMock.listVotesForTimeOption.mockReset();
+    dbMock.listParticipants.mockReset();
+    dbMock.insertParticipant.mockReset();
+    dbMock.updateParticipant.mockReset();
+    dbMock.updateSessionDetails.mockReset();
+  });
+
+  it("finalizes a draft option and avoids duplicate participants from matching votes", async () => {
+    const { finalizeTimeOptionAction } = await import("./actions");
+    const formData = new FormData();
+    formData.set("manage_token", "manage-1");
+    formData.set("time_option_id", "option-1");
+
+    dbMock.getSessionByManageToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "active",
+      lifecycle: "draft",
+    });
+    dbMock.getSessionTimeOption.mockResolvedValue({
+      id: "option-1",
+      session_id: "session-1",
+      starts_at: "2026-06-03T12:00:00.000Z",
+      duration_min: 120,
+    });
+    dbMock.listVotesForTimeOption.mockResolvedValue([
+      {
+        id: "vote-1",
+        session_id: "session-1",
+        session_time_option_id: "option-1",
+        name: "Alex",
+        participant_token: "device-1",
+        player_id: null,
+      },
+      {
+        id: "vote-2",
+        session_id: "session-1",
+        session_time_option_id: "option-1",
+        name: "Alex Updated",
+        participant_token: "device-1",
+        player_id: null,
+      },
+    ]);
+    dbMock.listParticipants.mockResolvedValue([]);
+    dbMock.insertParticipant.mockResolvedValue({
+      id: "participant-1",
+      session_id: "session-1",
+      name: "Alex",
+      rsvp: "going",
+      attended: false,
+      participant_token: "device-1",
+      player_id: null,
+      created_at: "2026-06-03T00:00:00.000Z",
+    });
+    dbMock.updateParticipant.mockResolvedValue(undefined);
+    dbMock.updateSessionDetails.mockResolvedValue(undefined);
+
+    await expect(finalizeTimeOptionAction(formData)).rejects.toThrow(
+      "redirect:/m/manage-1?saved=finalized"
+    );
+
+    expect(dbMock.insertParticipant).toHaveBeenCalledTimes(1);
+    expect(dbMock.insertParticipant).toHaveBeenCalledWith({
+      session_id: "session-1",
+      name: "Alex",
+      rsvp: "going",
+      participant_token: "device-1",
+      player_id: null,
+    });
+    expect(dbMock.updateParticipant).toHaveBeenCalledWith("participant-1", {
+      name: "Alex Updated",
+      rsvp: "going",
+      player_id: null,
+    });
+    expect(dbMock.updateSessionDetails).toHaveBeenCalledWith("session-1", {
+      starts_at: "2026-06-03T12:00:00.000Z",
+      duration_min: 120,
+      lifecycle: "finalized",
+    });
+    expect(revalidatePathMock).toHaveBeenCalledWith("/m/manage-1");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/s/guest-1");
   });
 });
 
