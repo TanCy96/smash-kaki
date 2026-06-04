@@ -1,7 +1,12 @@
 import { notFound } from "next/navigation";
-import { cancelSessionAction, editSessionAction } from "@/app/actions";
+import {
+  cancelSessionAction,
+  editSessionAction,
+  removeParticipantAction,
+} from "@/app/actions";
 import { AttendanceVerify } from "@/components/AttendanceVerify";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
+import { AddPlayersForm } from "@/components/AddPlayersForm";
 import { CostForm } from "@/components/CostForm";
 import { FinalizeTimeOptionForm } from "@/components/FinalizeTimeOptionForm";
 import {
@@ -219,6 +224,40 @@ export default async function ManagePage({
         </h1>
       </div>
       <ShareLinks guestUrl={guestUrl} manageUrl={manageUrl} />
+      <Card title="Players">
+        <ul className="flex flex-col gap-2">
+          {participants.length === 0 && (
+            <li className="text-sm text-muted">No players yet.</li>
+          )}
+          {participants.map((participant) => (
+            <li
+              key={participant.id}
+              className="flex items-center justify-between gap-2 text-sm text-ink"
+            >
+              <span>
+                {participant.name}{" "}
+                <span className="text-xs text-muted">({participant.rsvp})</span>
+              </span>
+              {!cancelled && (
+                <form action={removeParticipantAction}>
+                  <input type="hidden" name="manage_token" value={manageToken} />
+                  <input
+                    type="hidden"
+                    name="participant_id"
+                    value={participant.id}
+                  />
+                  <Button variant="ghost">Remove</Button>
+                </form>
+              )}
+            </li>
+          ))}
+        </ul>
+        {!cancelled && (
+          <div className="mt-3 border-t border-border pt-3">
+            <AddPlayersForm manageToken={manageToken} />
+          </div>
+        )}
+      </Card>
       <Card title="Verify attendance">
         <AttendanceVerify manageToken={manageToken} participants={participants} />
       </Card>
