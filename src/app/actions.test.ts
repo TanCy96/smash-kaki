@@ -566,3 +566,53 @@ describe("removeParticipantAction", () => {
     expect(dbMock.deleteParticipant).not.toHaveBeenCalled();
   });
 });
+
+describe("getMyPollFriends", () => {
+  beforeEach(() => {
+    dbMock.getSessionByGuestToken.mockReset();
+    dbMock.listSessionTimeOptions.mockReset();
+  });
+
+  it("returns the caller's friend names, deduped by token across slots, with no tokens", async () => {
+    const { getMyPollFriends } = await import("./actions");
+
+    dbMock.getSessionByGuestToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "active",
+      lifecycle: "draft",
+    });
+    dbMock.listSessionTimeOptions.mockResolvedValue([
+      {
+        id: "option-1",
+        votes: [
+          { id: "v1", name: "Host", participant_token: "device-1", added_by_token: null },
+          { id: "v2", name: "Ali", participant_token: "ft-1", added_by_token: "device-1" },
+          { id: "v3", name: "Other's friend", participant_token: "ft-9", added_by_token: "device-2" },
+        ],
+      },
+      {
+        id: "option-2",
+        votes: [
+          { id: "v4", name: "Ali", participant_token: "ft-1", added_by_token: "device-1" },
+          { id: "v5", name: "Siti", participant_token: "ft-2", added_by_token: "device-1" },
+        ],
+      },
+    ]);
+
+    const result = await getMyPollFriends("guest-1", "device-1");
+
+    expect(result).toEqual(["Ali", "Siti"]);
+  });
+
+  it("returns an empty array when the session is missing", async () => {
+    const { getMyPollFriends } = await import("./actions");
+    dbMock.getSessionByGuestToken.mockResolvedValue(null);
+
+    const result = await getMyPollFriends("guest-x", "device-1");
+
+    expect(result).toEqual([]);
+    expect(dbMock.listSessionTimeOptions).not.toHaveBeenCalled();
+  });
+});
