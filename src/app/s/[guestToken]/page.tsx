@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { RsvpForm } from "@/components/RsvpForm";
 import { TimePollForm } from "@/components/TimePollForm";
 import { TimePollSummary } from "@/components/TimePollSummary";
+import { Alert, Badge, Card, PageShell, StatRow } from "@/components/ui";
 import { computeCost } from "@/lib/cost";
 import { formatMalaysiaDateTime } from "@/lib/datetime";
 import {
@@ -26,46 +27,42 @@ export default async function GuestPage({
     const options = await listSessionTimeOptions(session.id);
 
     return (
-      <main className="mx-auto max-w-md p-4">
-        {session.status === "cancelled" && (
-          <div className="mb-3 rounded bg-red-100 p-2 text-red-800">
-            This poll was cancelled.
-          </div>
-        )}
-        <h1 className="text-2xl font-bold">{session.title}</h1>
-        <p>
-          {session.location}
-          {session.court_numbers ? ` - Court ${session.court_numbers}` : ""}
-        </p>
-        {session.notes && (
-          <p className="text-sm text-gray-600">{session.notes}</p>
-        )}
-
-        <h2 className="mt-4 font-semibold">Pick your available times</h2>
-        {submitted === "1" && (
-          <p className="mb-2 rounded bg-emerald-100 p-2 text-sm text-emerald-900">
-            Availability saved.
+      <PageShell
+        aside={
+          <Card highlight title="Pick your available times">
+            {submitted === "1" && <Alert tone="success">Availability saved.</Alert>}
+            <div className="mt-3">
+              <TimePollForm
+                guestToken={guestToken}
+                options={options}
+                disabled={session.status === "cancelled"}
+              />
+            </div>
+          </Card>
+        }
+      >
+        {session.status === "cancelled" && <Alert tone="danger">This poll was cancelled.</Alert>}
+        <div>
+          <Badge tone="draft">Poll</Badge>
+          <h1 className="mt-2 text-2xl font-extrabold text-heading">{session.title}</h1>
+          <p className="text-sm text-muted">
+            {session.location}
+            {session.court_numbers ? ` - Court ${session.court_numbers}` : ""}
           </p>
-        )}
-        <TimePollForm
-          guestToken={guestToken}
-          options={options}
-          disabled={session.status === "cancelled"}
-        />
-
-        <h2 className="mt-4 font-semibold">Current preferences</h2>
-        <TimePollSummary options={options} />
-      </main>
+          {session.notes && <p className="mt-1 text-sm text-muted">{session.notes}</p>}
+        </div>
+        <Card title="Current preferences">
+          <TimePollSummary options={options} />
+        </Card>
+      </PageShell>
     );
   }
 
   if (!session.starts_at || !session.duration_min) notFound();
 
   const participants = await listParticipants(session.id);
-  const going = participants.filter(
-    (participant) => participant.rsvp === "going"
-  );
-  const attended = participants.filter((participant) => participant.attended);
+  const going = participants.filter((p) => p.rsvp === "going");
+  const attended = participants.filter((p) => p.attended);
   const cost = computeCost({
     courtCost: session.court_cost,
     shuttlesUsed: session.shuttles_used,
@@ -75,56 +72,59 @@ export default async function GuestPage({
   const hasCost = session.court_cost != null || session.shuttles_used != null;
 
   return (
-    <main className="mx-auto max-w-md p-4">
-      {session.status === "cancelled" && (
-        <div className="mb-3 rounded bg-red-100 p-2 text-red-800">
-          This session was cancelled.
-        </div>
-      )}
-      <h1 className="text-2xl font-bold">{session.title}</h1>
-      <p>
-        {formatMalaysiaDateTime(session.starts_at)} - {session.duration_min} min
-      </p>
-      <p>
-        {session.location}
-        {session.court_numbers ? ` - Court ${session.court_numbers}` : ""}
-      </p>
-      {session.notes && <p className="text-sm text-gray-600">{session.notes}</p>}
-
-      <h2 className="mt-4 font-semibold">RSVP</h2>
-      {submitted === "1" && (
-        <p className="mb-2 rounded bg-emerald-100 p-2 text-sm text-emerald-900">
-          RSVP submitted.
+    <PageShell
+      aside={
+        <Card highlight title="Your RSVP">
+          {submitted === "1" && <Alert tone="success">RSVP submitted.</Alert>}
+          <div className="mt-3">
+            <RsvpForm guestToken={guestToken} disabled={session.status === "cancelled"} />
+          </div>
+        </Card>
+      }
+    >
+      {session.status === "cancelled" && <Alert tone="danger">This session was cancelled.</Alert>}
+      <div>
+        <Badge tone="confirmed">Confirmed</Badge>
+        <h1 className="mt-2 text-2xl font-extrabold text-heading">{session.title}</h1>
+        <p className="text-sm text-muted">
+          {formatMalaysiaDateTime(session.starts_at)} - {session.duration_min} min
         </p>
-      )}
-      <RsvpForm
-        guestToken={guestToken}
-        disabled={session.status === "cancelled"}
-      />
+        <p className="text-sm text-muted">
+          {session.location}
+          {session.court_numbers ? ` - Court ${session.court_numbers}` : ""}
+        </p>
+        {session.notes && <p className="mt-1 text-sm text-muted">{session.notes}</p>}
+      </div>
 
-      <h2 className="mt-4 font-semibold">Going ({going.length})</h2>
-      <ul className="list-disc pl-5">
-        {going.map((participant) => (
-          <li key={participant.id}>{participant.name}</li>
-        ))}
-      </ul>
+      <Card title={`Going (${going.length})`}>
+        {going.length === 0 ? (
+          <p className="text-sm text-muted">No one yet — be the first!</p>
+        ) : (
+          <ul className="flex flex-wrap gap-2 text-sm text-ink">
+            {going.map((p) => (
+              <li key={p.id} className="rounded-lg bg-black/5 px-2 py-1 dark:bg-white/5">
+                {p.name}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       {hasCost && (
-        <div className="mt-4 rounded bg-gray-100 p-3">
-          <h2 className="font-semibold">Cost summary</h2>
-          <p>Total: RM {cost.total.toFixed(2)}</p>
-          <p>Attended: {attended.length}</p>
-          <p>
-            Per person:{" "}
-            {cost.perHead == null ? "-" : `RM ${cost.perHead.toFixed(2)}`}
-          </p>
+        <Card title="Cost summary">
+          <StatRow label="Total" value={`RM ${cost.total.toFixed(2)}`} />
+          <StatRow label="Attended" value={attended.length} />
+          <StatRow
+            label="Per person"
+            value={cost.perHead == null ? "-" : `RM ${cost.perHead.toFixed(2)}`}
+          />
           {cost.remainder !== 0 && (
-            <p className="text-xs text-gray-500">
+            <p className="mt-1 text-xs text-muted">
               Rounding leftover: RM {cost.remainder.toFixed(2)}
             </p>
           )}
-        </div>
+        </Card>
       )}
-    </main>
+    </PageShell>
   );
 }

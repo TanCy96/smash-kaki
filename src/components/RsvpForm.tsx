@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { rsvpAction } from "@/app/actions";
+import { Button, Field, Input } from "@/components/ui";
 import { deviceToken } from "./device-token";
 
 export function RsvpForm({
@@ -18,37 +19,28 @@ export function RsvpForm({
   }, []);
 
   if (disabled) {
-    return (
-      <p className="text-sm text-gray-500">
-        RSVP closed - session cancelled.
-      </p>
-    );
+    return <p className="text-sm text-muted">RSVP closed - session cancelled.</p>;
   }
 
   return (
-    <form action={rsvpAction} className="flex flex-col gap-2">
+    <form action={rsvpAction} className="flex flex-col gap-3">
       <input type="hidden" name="guest_token" value={guestToken} />
       <input type="hidden" name="device_token" value={token} />
-      <input
-        name="name"
-        placeholder="Your name"
-        required
-        className="rounded border p-2"
-      />
-      <div className="flex gap-2">
-        <label>
+      <Field label="Your name">
+        <Input name="name" placeholder="Your name" required />
+      </Field>
+      <div className="flex gap-4 text-sm font-medium text-ink">
+        <label className="flex items-center gap-1.5">
           <input type="radio" name="rsvp" value="going" defaultChecked /> Going
         </label>
-        <label>
+        <label className="flex items-center gap-1.5">
           <input type="radio" name="rsvp" value="maybe" /> Maybe
         </label>
-        <label>
+        <label className="flex items-center gap-1.5">
           <input type="radio" name="rsvp" value="cant" /> Can&apos;t
         </label>
       </div>
-      <button className="rounded bg-emerald-600 p-2 text-white">
-        Submit RSVP
-      </button>
+      <Button disabled={!token}>Submit RSVP</Button>
     </form>
   );
 }
