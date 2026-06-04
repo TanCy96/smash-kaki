@@ -120,8 +120,9 @@ export async function insertParticipant(input: {
   session_id: string;
   name: string;
   rsvp: Rsvp;
-  participant_token: string;
+  participant_token: string | null;
   player_id: string | null;
+  added_by_token?: string | null;
 }): Promise<Participant> {
   const { data, error } = await admin
     .from("participants")
@@ -137,6 +138,30 @@ export async function updateParticipant(
   patch: Partial<Pick<Participant, "name" | "rsvp" | "attended" | "player_id">>
 ): Promise<void> {
   const { error } = await admin.from("participants").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteParticipant(
+  id: string,
+  sessionId: string
+): Promise<void> {
+  const { error } = await admin
+    .from("participants")
+    .delete()
+    .eq("id", id)
+    .eq("session_id", sessionId);
+  if (error) throw error;
+}
+
+export async function deleteGuestsOf(
+  sessionId: string,
+  addedByToken: string
+): Promise<void> {
+  const { error } = await admin
+    .from("participants")
+    .delete()
+    .eq("session_id", sessionId)
+    .eq("added_by_token", addedByToken);
   if (error) throw error;
 }
 
