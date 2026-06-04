@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import {
+  addPollFriendAction,
   cancelSessionAction,
   editSessionAction,
   removeParticipantAction,
+  removePollFriendAction,
 } from "@/app/actions";
 import { AttendanceVerify } from "@/components/AttendanceVerify";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
@@ -27,6 +29,7 @@ import {
 } from "@/lib/datetime";
 import {
   getSessionByManageToken,
+  listManagerPollFriends,
   listParticipants,
   listSessionTimeOptions,
 } from "@/lib/db";
@@ -81,6 +84,7 @@ export default async function ManagePage({
 
   if (session.lifecycle === "draft") {
     const options = await listSessionTimeOptions(session.id);
+    const managerFriends = await listManagerPollFriends(session.id);
 
     return (
       <PageShell
@@ -158,6 +162,61 @@ export default async function ManagePage({
             ))}
           </div>
         </Card>
+        {managerFriends.length > 0 && (
+          <Card title="Players you've added">
+            <ul className="flex flex-col gap-2">
+              {managerFriends.map((friend) => (
+                <li
+                  key={friend.friendToken}
+                  className="flex items-center justify-between gap-2 text-sm text-ink"
+                >
+                  <span>
+                    {friend.name}{" "}
+                    <span className="text-xs text-muted">
+                      ({friend.optionIds.length} slot
+                      {friend.optionIds.length === 1 ? "" : "s"})
+                    </span>
+                  </span>
+                  {!cancelled && (
+                    <form action={removePollFriendAction}>
+                      <input type="hidden" name="manage_token" value={manageToken} />
+                      <input type="hidden" name="friend_token" value={friend.friendToken} />
+                      <Button variant="ghost">Remove</Button>
+                    </form>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+        {!cancelled && (
+          <Card title="Add a player">
+            <form action={addPollFriendAction} className="flex flex-col gap-3">
+              <input type="hidden" name="manage_token" value={manageToken} />
+              <Field label="Player's name">
+                <Input name="name" placeholder="Player's name" required />
+              </Field>
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium text-ink">Available for</p>
+                {options.map((option) => (
+                  <label
+                    key={option.id}
+                    className="flex items-center gap-2 text-sm text-ink"
+                  >
+                    <input
+                      type="checkbox"
+                      name="time_option_id"
+                      value={option.id}
+                      className="size-4 rounded border-border text-primary"
+                    />
+                    {formatMalaysiaDateTime(option.starts_at)} ({option.duration_min} min)
+                  </label>
+                ))}
+              </div>
+              <Button>Add player</Button>
+            </form>
+          </Card>
+        )}
       </PageShell>
     );
   }
