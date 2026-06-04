@@ -16,6 +16,7 @@ function query(result: unknown) {
     delete: vi.fn(() => chain),
     insert: vi.fn(() => result),
     eq: vi.fn(() => chain),
+    is: vi.fn(() => chain),
     in: vi.fn(() => result),
     order: vi.fn(() => result),
   };

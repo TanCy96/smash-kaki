@@ -241,10 +241,14 @@ export async function listSessionTimeOptions(
 export async function listTimePollVoters(sessionId: string): Promise<
   PollVoteIdentity[]
 > {
+  // Only organic self-votes identify the submitting voter; brought friends
+  // (added_by_token set) are never the submitter and must not be matched
+  // against, or a name collision would clobber a friend's votes.
   const { data, error } = await admin
     .from("time_option_votes")
     .select("id, name, participant_token, player_id")
     .eq("session_id", sessionId)
+    .is("added_by_token", null)
     .order("created_at", { ascending: true });
 
   if (error) throw error;
