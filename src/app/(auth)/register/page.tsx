@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { registerAction } from "@/app/actions";
+import { Alert, Button, Card, Field, Input, PageShell } from "@/components/ui";
 
 export default async function Register({
   searchParams,
@@ -9,47 +10,26 @@ export default async function Register({
   const { error } = await searchParams;
 
   return (
-    <main className="mx-auto max-w-sm p-4">
-      <h1 className="mb-3 text-xl font-bold">Create account</h1>
-      {error && (
-        <p className="mb-3 rounded bg-red-50 p-2 text-sm text-red-800">
-          {error}
-        </p>
-      )}
-      <form action={registerAction} className="flex flex-col gap-2">
-        <input
-          name="display_name"
-          placeholder="Name"
-          required
-          className="rounded border p-2"
-        />
-        <input
-          name="email"
-          type="email"
-          placeholder="Email (for password reset)"
-          required
-          className="rounded border p-2"
-        />
-        <input
-          name="password"
-          type="password"
-          placeholder="Password (min 6)"
-          minLength={6}
-          required
-          className="rounded border p-2"
-        />
-        <button className="rounded bg-emerald-600 p-2 text-white">
-          Register
-        </button>
-      </form>
-      <div className="mt-3 flex justify-between gap-3 text-sm">
-        <Link href="/login" className="text-emerald-700">
-          Already have an account?
-        </Link>
-        <Link href="/" className="text-gray-600">
-          Back
-        </Link>
-      </div>
-    </main>
+    <PageShell narrow>
+      <Card title="Create account">
+        {error && <Alert tone="danger">{error}</Alert>}
+        <form action={registerAction} className="mt-3 flex flex-col gap-3">
+          <Field label="Name">
+            <Input name="display_name" placeholder="Alex" required />
+          </Field>
+          <Field label="Email (for password reset)">
+            <Input name="email" type="email" placeholder="you@example.com" required />
+          </Field>
+          <Field label="Password (min 6)">
+            <Input name="password" type="password" minLength={6} placeholder="••••••••" required />
+          </Field>
+          <Button>Register</Button>
+        </form>
+        <div className="mt-4 flex justify-between gap-3 text-sm font-semibold">
+          <Link href="/login" className="text-primary hover:underline">Already have an account?</Link>
+          <Link href="/" className="text-muted hover:underline">Back</Link>
+        </div>
+      </Card>
+    </PageShell>
   );
 }

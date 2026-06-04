@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { forgotPasswordAction } from "@/app/actions";
+import { Alert, Button, Card, Field, Input, PageShell } from "@/components/ui";
 
 export default async function Forgot({
   searchParams,
@@ -9,28 +10,19 @@ export default async function Forgot({
   const { error } = await searchParams;
 
   return (
-    <main className="mx-auto max-w-sm p-4">
-      <h1 className="mb-3 text-xl font-bold">Reset password</h1>
-      {error && (
-        <p className="mb-3 rounded bg-red-50 p-2 text-sm text-red-800">
-          {error}
-        </p>
-      )}
-      <form action={forgotPasswordAction} className="flex flex-col gap-2">
-        <input
-          name="email"
-          type="email"
-          placeholder="Your account email"
-          required
-          className="rounded border p-2"
-        />
-        <button className="rounded bg-emerald-600 p-2 text-white">
-          Send reset link
-        </button>
-      </form>
-      <Link href="/login" className="mt-3 inline-block text-sm text-emerald-700">
-        Back to login
-      </Link>
-    </main>
+    <PageShell narrow>
+      <Card title="Reset password">
+        {error && <Alert tone="danger">{error}</Alert>}
+        <form action={forgotPasswordAction} className="mt-3 flex flex-col gap-3">
+          <Field label="Your account email">
+            <Input name="email" type="email" placeholder="you@example.com" required />
+          </Field>
+          <Button>Send reset link</Button>
+        </form>
+        <Link href="/login" className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">
+          Back to login
+        </Link>
+      </Card>
+    </PageShell>
   );
 }
