@@ -1,7 +1,11 @@
 export function formatMalaysiaDateTime(value: string | Date): string {
   return new Intl.DateTimeFormat("en-MY", {
-    dateStyle: "medium",
-    timeStyle: "short",
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
     timeZone: "Asia/Kuala_Lumpur",
     hour12: true,
   }).format(new Date(value));
