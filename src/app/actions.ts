@@ -13,6 +13,8 @@ import {
   selectedOptionIds,
 } from "@/lib/time-poll";
 import { generateToken } from "@/lib/tokens";
+import { normalizePlayerNames } from "@/lib/players";
+import type { Rsvp } from "@/lib/types";
 
 const createSchema = z.object({
   organizer_name: z.string().min(1),
@@ -150,8 +152,55 @@ export async function rsvpAction(formData: FormData) {
     });
   }
 
+  const friendNames = normalizePlayerNames(
+    formData.getAll("friend_name").map(String),
+    { max: 10 }
+  );
+
+  await db.deleteGuestsOf(session.id, value.device_token);
+  for (const name of friendNames) {
+    await db.insertParticipant({
+      session_id: session.id,
+      name,
+      rsvp: "going",
+      participant_token: null,
+      player_id: null,
+      added_by_token: value.device_token,
+    });
+  }
+
   revalidatePath(`/s/${value.guest_token}`);
   redirect(`/s/${value.guest_token}?submitted=1`);
+}
+
+export async function getMyRsvp(
+  guestToken: string,
+  deviceToken: string
+): Promise<{ name: string; rsvp: Rsvp; friends: string[] } | null> {
+  const session = await db.getSessionByGuestToken(guestToken);
+  if (!session) return null;
+
+  const playerId = await currentPlayerId();
+  const participants = await db.listParticipants(session.id);
+
+  const self =
+    (playerId
+      ? participants.find((p) => p.player_id === playerId)
+      : undefined) ??
+    participants.find((p) => p.participant_token === deviceToken) ??
+    null;
+
+  const friends = participants
+    .filter((p) => p.added_by_token === deviceToken)
+    .map((p) => p.name);
+
+  if (!self && friends.length === 0) return null;
+
+  return {
+    name: self?.name ?? "",
+    rsvp: self?.rsvp ?? "going",
+    friends,
+  };
 }
 
 const timePollVoteSchema = z.object({

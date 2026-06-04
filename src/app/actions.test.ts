@@ -9,6 +9,7 @@ const dbMock = vi.hoisted(() => ({
   listParticipants: vi.fn(),
   insertParticipant: vi.fn(),
   updateParticipant: vi.fn(),
+  deleteGuestsOf: vi.fn(),
   listSessionTimeOptions: vi.fn(),
   listTimePollVoters: vi.fn(),
   replaceTimeOptionVotes: vi.fn(),
@@ -286,6 +287,7 @@ describe("rsvpAction", () => {
     dbMock.listParticipants.mockReset();
     dbMock.insertParticipant.mockReset();
     dbMock.updateParticipant.mockReset();
+    dbMock.deleteGuestsOf.mockReset();
   });
 
   it("redirects without writing an RSVP when the session is still a draft poll", async () => {
@@ -309,5 +311,59 @@ describe("rsvpAction", () => {
     expect(dbMock.listParticipants).not.toHaveBeenCalled();
     expect(dbMock.insertParticipant).not.toHaveBeenCalled();
     expect(dbMock.updateParticipant).not.toHaveBeenCalled();
+  });
+
+  it("inserts the host RSVP and replaces their brought friends", async () => {
+    const { rsvpAction } = await import("./actions");
+    const formData = new FormData();
+    formData.set("guest_token", "guest-1");
+    formData.set("name", "Alex");
+    formData.set("device_token", "device-1");
+    formData.set("rsvp", "going");
+    formData.append("friend_name", " Ali ");
+    formData.append("friend_name", "");
+    formData.append("friend_name", "ali");
+    formData.append("friend_name", "Siti");
+
+    dbMock.getSessionByGuestToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "active",
+      lifecycle: "finalized",
+    });
+    dbMock.listParticipants.mockResolvedValue([]);
+    dbMock.insertParticipant.mockResolvedValue({ id: "participant-1" });
+    dbMock.deleteGuestsOf.mockResolvedValue(undefined);
+    currentPlayerIdMock.mockResolvedValue(null);
+
+    await expect(rsvpAction(formData)).rejects.toThrow(
+      "redirect:/s/guest-1?submitted=1"
+    );
+
+    expect(dbMock.insertParticipant).toHaveBeenNthCalledWith(1, {
+      session_id: "session-1",
+      name: "Alex",
+      rsvp: "going",
+      participant_token: "device-1",
+      player_id: null,
+    });
+    expect(dbMock.deleteGuestsOf).toHaveBeenCalledWith("session-1", "device-1");
+    expect(dbMock.insertParticipant).toHaveBeenNthCalledWith(2, {
+      session_id: "session-1",
+      name: "Ali",
+      rsvp: "going",
+      participant_token: null,
+      player_id: null,
+      added_by_token: "device-1",
+    });
+    expect(dbMock.insertParticipant).toHaveBeenNthCalledWith(3, {
+      session_id: "session-1",
+      name: "Siti",
+      rsvp: "going",
+      participant_token: null,
+      player_id: null,
+      added_by_token: "device-1",
+    });
   });
 });
