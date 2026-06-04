@@ -1,4 +1,5 @@
 import { finalizeTimeOptionAction } from "@/app/actions";
+import { Button } from "@/components/ui";
 
 export function FinalizeTimeOptionForm({
   manageToken,
@@ -11,9 +12,9 @@ export function FinalizeTimeOptionForm({
     <form action={finalizeTimeOptionAction}>
       <input type="hidden" name="manage_token" value={manageToken} />
       <input type="hidden" name="time_option_id" value={timeOptionId} />
-      <button className="rounded bg-emerald-600 px-3 py-2 text-sm text-white">
-        Finalize
-      </button>
+      <Button variant="secondary" className="px-3 py-1.5 text-xs">
+        Finalize this time
+      </Button>
     </form>
   );
 }

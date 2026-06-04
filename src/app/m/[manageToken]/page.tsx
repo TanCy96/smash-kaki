@@ -1,12 +1,20 @@
 import { notFound } from "next/navigation";
-import {
-  cancelSessionAction,
-  editSessionAction,
-} from "@/app/actions";
+import { cancelSessionAction, editSessionAction } from "@/app/actions";
 import { AttendanceVerify } from "@/components/AttendanceVerify";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { CostForm } from "@/components/CostForm";
 import { FinalizeTimeOptionForm } from "@/components/FinalizeTimeOptionForm";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Field,
+  Input,
+  PageShell,
+  StatRow,
+  Textarea,
+} from "@/components/ui";
 import { computeCost } from "@/lib/cost";
 import {
   formatMalaysiaDateTime,
@@ -17,6 +25,25 @@ import {
   listParticipants,
   listSessionTimeOptions,
 } from "@/lib/db";
+
+function ShareLinks({ guestUrl, manageUrl }: { guestUrl: string; manageUrl: string }) {
+  return (
+    <Card title="Share">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-sm text-ink">Guest link: {guestUrl}</span>
+          <CopyLinkButton url={guestUrl} label="Copy guest link" />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-sm text-muted">
+            Manage link (keep secret): {manageUrl}
+          </span>
+          <CopyLinkButton url={manageUrl} label="Copy manage link" />
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export default async function ManagePage({
   params,
@@ -33,261 +60,178 @@ export default async function ManagePage({
   const base = process.env.NEXT_PUBLIC_BASE_URL ?? "";
   const guestUrl = `${base}/s/${session.guest_token}`;
   const manageUrl = `${base}/m/${session.manage_token}`;
+  const cancelled = session.status === "cancelled";
+
+  const banners = (
+    <>
+      {cancelled && <Alert tone="danger">This was cancelled.</Alert>}
+      {created && <Alert tone="success">Created. Share the guest link.</Alert>}
+      {saved === "finalized" ? (
+        <Alert tone="success">Session finalized.</Alert>
+      ) : (
+        saved && <Alert tone="success">Changes saved.</Alert>
+      )}
+    </>
+  );
 
   if (session.lifecycle === "draft") {
     const options = await listSessionTimeOptions(session.id);
 
     return (
-      <main className="mx-auto max-w-md p-4">
-        <h1 className="text-2xl font-bold">Manage poll: {session.title}</h1>
-        {session.status === "cancelled" && (
-          <p className="mt-2 rounded bg-red-100 p-2 text-red-800">
-            This poll was cancelled.
-          </p>
-        )}
-        {created && (
-          <p className="mt-2 rounded bg-emerald-100 p-2 text-emerald-900">
-            Poll created. Share the guest link below.
-          </p>
-        )}
-        {saved === "finalized" ? (
-          <p className="mt-2 rounded bg-emerald-100 p-2 text-emerald-900">
-            Session finalized.
-          </p>
-        ) : (
-          saved && (
-            <p className="mt-2 rounded bg-emerald-100 p-2 text-emerald-900">
-              Changes saved.
-            </p>
-          )
-        )}
-
-        <div className="my-3 flex flex-col gap-2 rounded bg-gray-100 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-sm">Guest link: {guestUrl}</span>
-            <CopyLinkButton url={guestUrl} label="Copy guest link" />
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-sm">
-              Manage link (keep secret): {manageUrl}
-            </span>
-            <CopyLinkButton url={manageUrl} label="Copy manage link" />
-          </div>
+      <PageShell
+        aside={
+          <>
+            <Card highlight title="Edit details">
+              <form action={editSessionAction} className="flex flex-col gap-3">
+                <input type="hidden" name="manage_token" value={manageToken} />
+                <input type="hidden" name="starts_at" value="1970-01-01T00:00" />
+                <input type="hidden" name="duration_min" value="1" />
+                <Field label="Title">
+                  <Input name="title" defaultValue={session.title} required />
+                </Field>
+                <Field label="Location">
+                  <Input name="location" defaultValue={session.location} required />
+                </Field>
+                <Field label="Court number(s)">
+                  <Input name="court_numbers" defaultValue={session.court_numbers ?? ""} placeholder="Court number(s)" />
+                </Field>
+                <Field label="Notes">
+                  <Textarea name="notes" defaultValue={session.notes ?? ""} placeholder="Notes" />
+                </Field>
+                <Button>Save details</Button>
+              </form>
+            </Card>
+            {!cancelled && (
+              <form action={cancelSessionAction}>
+                <input type="hidden" name="manage_token" value={manageToken} />
+                <Button variant="danger" className="w-full">Cancel poll</Button>
+              </form>
+            )}
+          </>
+        }
+      >
+        {banners}
+        <div>
+          <Badge tone="draft">Poll</Badge>
+          <h1 className="mt-2 text-2xl font-extrabold text-heading">
+            Manage poll: {session.title}
+          </h1>
         </div>
-
-        <section className="mt-4">
-          <h2 className="font-semibold">Edit details</h2>
-          <form action={editSessionAction} className="mt-2 flex flex-col gap-2">
-            <input type="hidden" name="manage_token" value={manageToken} />
-            <input type="hidden" name="starts_at" value="1970-01-01T00:00" />
-            <input type="hidden" name="duration_min" value="1" />
-            <input
-              name="title"
-              defaultValue={session.title}
-              required
-              className="rounded border p-2"
-            />
-            <input
-              name="location"
-              defaultValue={session.location}
-              required
-              className="rounded border p-2"
-            />
-            <input
-              name="court_numbers"
-              defaultValue={session.court_numbers ?? ""}
-              placeholder="Court number(s)"
-              className="rounded border p-2"
-            />
-            <textarea
-              name="notes"
-              defaultValue={session.notes ?? ""}
-              placeholder="Notes"
-              className="rounded border p-2"
-            />
-            <button className="rounded bg-emerald-600 p-2 text-white">
-              Save details
-            </button>
-          </form>
-        </section>
-
-        <section className="mt-4">
-          <h2 className="font-semibold">Current preferences</h2>
-          <div className="mt-2 flex flex-col gap-3">
+        <ShareLinks guestUrl={guestUrl} manageUrl={manageUrl} />
+        <Card title="Current preferences">
+          <div className="flex flex-col gap-3">
             {options.map((option) => (
-              <section
-                key={option.id}
-                className="rounded-md border border-gray-200 bg-white p-3"
-              >
+              <div key={option.id} className="rounded-xl border border-border p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="font-semibold text-gray-950">
+                    <h3 className="font-semibold text-heading">
                       {formatMalaysiaDateTime(option.starts_at)}
                     </h3>
-                    <p className="text-sm text-gray-600">
-                      {option.duration_min} min
-                    </p>
+                    <p className="text-sm text-muted">{option.duration_min} min</p>
                   </div>
-                  <span className="rounded-md bg-emerald-50 px-2 py-1 text-sm font-semibold text-emerald-800">
+                  <span className="rounded-full bg-success-bg px-2.5 py-0.5 text-sm font-bold text-success-ink">
                     {option.votes.length}
                   </span>
                 </div>
                 {option.votes.length === 0 ? (
-                  <p className="mt-2 text-sm text-gray-500">No votes yet.</p>
+                  <p className="mt-2 text-sm text-muted">No votes yet.</p>
                 ) : (
-                  <ul className="mt-2 flex flex-wrap gap-2 text-sm text-gray-700">
+                  <ul className="mt-2 flex flex-wrap gap-2 text-sm text-ink">
                     {option.votes.map((vote) => (
-                      <li
-                        key={vote.id}
-                        className="rounded-md bg-gray-100 px-2 py-1"
-                      >
+                      <li key={vote.id} className="rounded-lg bg-black/5 px-2 py-1 dark:bg-white/5">
                         {vote.name}
                       </li>
                     ))}
                   </ul>
                 )}
-                {session.status !== "cancelled" && (
+                {!cancelled && (
                   <div className="mt-3">
-                    <FinalizeTimeOptionForm
-                      manageToken={manageToken}
-                      timeOptionId={option.id}
-                    />
+                    <FinalizeTimeOptionForm manageToken={manageToken} timeOptionId={option.id} />
                   </div>
                 )}
-              </section>
+              </div>
             ))}
           </div>
-        </section>
-
-        {session.status !== "cancelled" && (
-          <form action={cancelSessionAction} className="mt-4">
-            <input type="hidden" name="manage_token" value={manageToken} />
-            <button className="rounded bg-red-600 p-2 text-sm text-white">
-              Cancel poll
-            </button>
-          </form>
-        )}
-      </main>
+        </Card>
+      </PageShell>
     );
   }
 
   if (!session.starts_at || !session.duration_min) notFound();
 
   const participants = await listParticipants(session.id);
-  const attended = participants.filter(
-    (participant) => participant.attended
-  ).length;
+  const attended = participants.filter((p) => p.attended).length;
   const cost = computeCost({
     courtCost: session.court_cost,
     shuttlesUsed: session.shuttles_used,
     pricePerShuttle: session.price_per_shuttle,
     attendedCount: attended,
   });
-  const startsAt = session.starts_at;
-  const durationMin = session.duration_min;
 
   return (
-    <main className="mx-auto max-w-md p-4">
-      <h1 className="text-2xl font-bold">Manage: {session.title}</h1>
-      {created && (
-        <p className="rounded bg-emerald-100 p-2 text-emerald-900">
-          Session created! Share the guest link below.
-        </p>
-      )}
-      {saved === "finalized" ? (
-        <p className="mt-2 rounded bg-emerald-100 p-2 text-emerald-900">
-          Session finalized.
-        </p>
-      ) : (
-        saved && (
-          <p className="mt-2 rounded bg-emerald-100 p-2 text-emerald-900">
-            Changes saved.
-          </p>
-        )
-      )}
-
-      <div className="my-3 flex flex-col gap-2 rounded bg-gray-100 p-3">
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm">Guest link: {guestUrl}</span>
-          <CopyLinkButton url={guestUrl} label="Copy guest link" />
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm">
-            Manage link (keep secret): {manageUrl}
-          </span>
-          <CopyLinkButton url={manageUrl} label="Copy manage link" />
-        </div>
+    <PageShell
+      aside={
+        <>
+          <Card highlight title="Edit details">
+            <form action={editSessionAction} className="flex flex-col gap-3">
+              <input type="hidden" name="manage_token" value={manageToken} />
+              <Field label="Title">
+                <Input name="title" defaultValue={session.title} required />
+              </Field>
+              <Field label="Date and time">
+                <Input
+                  name="starts_at"
+                  type="datetime-local"
+                  defaultValue={formatMalaysiaDateTimeLocalInput(session.starts_at)}
+                  required
+                />
+              </Field>
+              <Field label="Duration (minutes)">
+                <Input name="duration_min" type="number" min="1" defaultValue={session.duration_min} required />
+              </Field>
+              <Field label="Location">
+                <Input name="location" defaultValue={session.location} required />
+              </Field>
+              <Field label="Court number(s)">
+                <Input name="court_numbers" defaultValue={session.court_numbers ?? ""} placeholder="Court number(s)" />
+              </Field>
+              <Field label="Notes">
+                <Textarea name="notes" defaultValue={session.notes ?? ""} />
+              </Field>
+              <Button>Save changes</Button>
+            </form>
+          </Card>
+          {!cancelled && (
+            <form action={cancelSessionAction}>
+              <input type="hidden" name="manage_token" value={manageToken} />
+              <Button variant="danger" className="w-full">Cancel session</Button>
+            </form>
+          )}
+        </>
+      }
+    >
+      {banners}
+      <div>
+        <Badge tone="confirmed">Confirmed</Badge>
+        <h1 className="mt-2 text-2xl font-extrabold text-heading">
+          Manage: {session.title}
+        </h1>
       </div>
-
-      <h2 className="mt-4 font-semibold">Edit details</h2>
-      <form action={editSessionAction} className="flex flex-col gap-2">
-        <input type="hidden" name="manage_token" value={manageToken} />
-        <input
-          name="title"
-          defaultValue={session.title}
-          required
-          className="rounded border p-2"
-        />
-        <input
-          name="starts_at"
-          type="datetime-local"
-          defaultValue={formatMalaysiaDateTimeLocalInput(startsAt)}
-          required
-          className="rounded border p-2"
-        />
-        <input
-          name="duration_min"
-          type="number"
-          min="1"
-          defaultValue={durationMin}
-          required
-          className="rounded border p-2"
-        />
-        <input
-          name="location"
-          defaultValue={session.location}
-          required
-          className="rounded border p-2"
-        />
-        <input
-          name="court_numbers"
-          defaultValue={session.court_numbers ?? ""}
-          placeholder="Court number(s)"
-          className="rounded border p-2"
-        />
-        <textarea
-          name="notes"
-          defaultValue={session.notes ?? ""}
-          className="rounded border p-2"
-        />
-        <button className="rounded bg-emerald-600 p-2 text-white">
-          Save changes
-        </button>
-      </form>
-
-      <h2 className="mt-4 font-semibold">Verify attendance</h2>
-      <AttendanceVerify manageToken={manageToken} participants={participants} />
-
-      <h2 className="mt-4 font-semibold">Cost</h2>
-      <CostForm session={session} />
-      <div className="mt-2 rounded bg-gray-100 p-3">
-        <p>
-          Total: RM {cost.total.toFixed(2)} - Attended: {attended}
-        </p>
-        <p>
-          Per person:{" "}
-          {cost.perHead == null ? "-" : `RM ${cost.perHead.toFixed(2)}`}
-        </p>
-      </div>
-
-      {session.status !== "cancelled" && (
-        <form action={cancelSessionAction} className="mt-4">
-          <input type="hidden" name="manage_token" value={manageToken} />
-          <button className="rounded bg-red-600 p-2 text-sm text-white">
-            Cancel session
-          </button>
-        </form>
-      )}
-    </main>
+      <ShareLinks guestUrl={guestUrl} manageUrl={manageUrl} />
+      <Card title="Verify attendance">
+        <AttendanceVerify manageToken={manageToken} participants={participants} />
+      </Card>
+      <Card title="Cost">
+        <CostForm session={session} />
+        <div className="mt-3 border-t border-border pt-3">
+          <StatRow label="Total" value={`RM ${cost.total.toFixed(2)}`} />
+          <StatRow label="Attended" value={attended} />
+          <StatRow
+            label="Per person"
+            value={cost.perHead == null ? "-" : `RM ${cost.perHead.toFixed(2)}`}
+          />
+        </div>
+      </Card>
+    </PageShell>
   );
 }

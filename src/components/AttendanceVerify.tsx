@@ -1,6 +1,7 @@
 "use client";
 
 import { verifyAttendanceAction } from "@/app/actions";
+import { Button } from "@/components/ui";
 import type { Participant } from "@/lib/types";
 
 export function AttendanceVerify({
@@ -11,23 +12,22 @@ export function AttendanceVerify({
   participants: Participant[];
 }) {
   return (
-    <form action={verifyAttendanceAction} className="flex flex-col gap-1">
+    <form action={verifyAttendanceAction} className="flex flex-col gap-2">
       <input type="hidden" name="manage_token" value={manageToken} />
       {participants.map((participant) => (
-        <label key={participant.id} className="flex items-center gap-2">
+        <label key={participant.id} className="flex items-center gap-2 text-sm text-ink">
           <input
             type="checkbox"
             name="attended"
             value={participant.id}
             defaultChecked={participant.attended}
+            className="size-4 rounded border-border text-primary"
           />
           {participant.name}{" "}
-          <span className="text-xs text-gray-500">({participant.rsvp})</span>
+          <span className="text-xs text-muted">({participant.rsvp})</span>
         </label>
       ))}
-      <button className="mt-2 rounded bg-emerald-600 p-2 text-white">
-        Save attendance
-      </button>
+      <Button className="mt-2">Save attendance</Button>
     </form>
   );
 }
