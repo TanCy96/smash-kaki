@@ -477,4 +477,25 @@ describe("removeParticipantAction", () => {
       "session-1"
     );
   });
+
+  it("redirects without deleting when the session is cancelled", async () => {
+    const { removeParticipantAction } = await import("./actions");
+    const formData = new FormData();
+    formData.set("manage_token", "manage-1");
+    formData.set("participant_id", "participant-9");
+
+    dbMock.getSessionByManageToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "cancelled",
+      lifecycle: "finalized",
+    });
+
+    await expect(removeParticipantAction(formData)).rejects.toThrow(
+      "redirect:/m/manage-1"
+    );
+
+    expect(dbMock.deleteParticipant).not.toHaveBeenCalled();
+  });
 });

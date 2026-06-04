@@ -541,7 +541,13 @@ export async function removeParticipantAction(formData: FormData) {
   const manageToken = String(formData.get("manage_token"));
   const participantId = String(formData.get("participant_id"));
   const session = await db.getSessionByManageToken(manageToken);
-  if (!session) redirect(`/m/${manageToken}`);
+  if (
+    !session ||
+    session.status === "cancelled" ||
+    session.lifecycle !== "finalized"
+  ) {
+    redirect(`/m/${manageToken}`);
+  }
 
   await db.deleteParticipant(participantId, session.id);
 
