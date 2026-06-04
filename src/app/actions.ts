@@ -337,6 +337,7 @@ export async function finalizeTimeOptionAction(formData: FormData) {
         rsvp: "going",
         participant_token: vote.participant_token,
         player_id: vote.player_id,
+        added_by_token: vote.added_by_token,
       });
       knownParticipants = [...knownParticipants, inserted];
     } else {

@@ -215,6 +215,7 @@ describe("finalizeTimeOptionAction", () => {
         name: "Alex",
         participant_token: "device-1",
         player_id: null,
+        added_by_token: null,
       },
       {
         id: "vote-2",
@@ -223,6 +224,7 @@ describe("finalizeTimeOptionAction", () => {
         name: "Alex Updated",
         participant_token: "device-1",
         player_id: null,
+        added_by_token: null,
       },
     ]);
     dbMock.listParticipants.mockResolvedValue([]);
@@ -250,6 +252,7 @@ describe("finalizeTimeOptionAction", () => {
       rsvp: "going",
       participant_token: "device-1",
       player_id: null,
+      added_by_token: null,
     });
     expect(dbMock.updateParticipant).toHaveBeenCalledWith("participant-1", {
       name: "Alex Updated",
@@ -263,6 +266,55 @@ describe("finalizeTimeOptionAction", () => {
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/m/manage-1");
     expect(revalidatePathMock).toHaveBeenCalledWith("/s/guest-1");
+  });
+
+  it("carries added_by_token when a ride-along friend wins", async () => {
+    const { finalizeTimeOptionAction } = await import("./actions");
+    const formData = new FormData();
+    formData.set("manage_token", "manage-1");
+    formData.set("time_option_id", "option-1");
+
+    dbMock.getSessionByManageToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "active",
+      lifecycle: "draft",
+    });
+    dbMock.getSessionTimeOption.mockResolvedValue({
+      id: "option-1",
+      session_id: "session-1",
+      starts_at: "2026-06-03T12:00:00.000Z",
+      duration_min: 120,
+    });
+    dbMock.listVotesForTimeOption.mockResolvedValue([
+      {
+        id: "vote-9",
+        session_id: "session-1",
+        session_time_option_id: "option-1",
+        name: "Ali",
+        participant_token: "ft-1",
+        player_id: null,
+        added_by_token: "device-1",
+      },
+    ]);
+    dbMock.listParticipants.mockResolvedValue([]);
+    dbMock.insertParticipant.mockResolvedValue({ id: "participant-9" });
+    dbMock.updateParticipant.mockResolvedValue(undefined);
+    dbMock.updateSessionDetails.mockResolvedValue(undefined);
+
+    await expect(finalizeTimeOptionAction(formData)).rejects.toThrow(
+      "redirect:/m/manage-1?saved=finalized"
+    );
+
+    expect(dbMock.insertParticipant).toHaveBeenCalledWith({
+      session_id: "session-1",
+      name: "Ali",
+      rsvp: "going",
+      participant_token: "ft-1",
+      player_id: null,
+      added_by_token: "device-1",
+    });
   });
 });
 
