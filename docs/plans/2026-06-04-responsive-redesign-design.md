@@ -58,7 +58,11 @@ strings (e.g. `CreateSessionForm`'s local `inputClass`/`labelClass`,
   single `lg:` breakpoint. Pages declare which slot is `main` and which is `aside`.
 - **Card** — section container; optional title + body.
 - **Button** — variants: `primary` (emerald gradient), `secondary` (outline),
-  `danger`/`ghost`, plus disabled state.
+  `danger`/`ghost`, plus disabled state. Interactive feedback on every variant:
+  `hover` (slightly darker/raised) for pointer devices, `active:` press state
+  (scale-down + darker) so taps feel responsive on touch where hover doesn't
+  apply, and a visible `focus-visible` ring for keyboard. Honors
+  `prefers-reduced-motion` (no scale transition when set).
 - **Field** — wraps Input / Textarea / Select with a label and an error slot.
 - **Badge** — status pills (Confirmed / Draft / Cancelled).
 - **Alert** — inline feedback banners (success / danger), for the existing
