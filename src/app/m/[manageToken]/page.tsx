@@ -182,6 +182,7 @@ export default async function ManagePage({
                 <Input
                   name="starts_at"
                   type="datetime-local"
+                  step={3600}
                   defaultValue={formatMalaysiaDateTimeLocalInput(session.starts_at)}
                   required
                 />

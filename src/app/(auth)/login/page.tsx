@@ -19,7 +19,7 @@ export default async function Login({
             <Input name="email" type="email" placeholder="you@example.com" required />
           </Field>
           <Field label="Password">
-            <Input name="password" type="password" placeholder="••••••••" required />
+            <Input name="password" type="password" required />
           </Field>
           <Button>Log in</Button>
         </form>

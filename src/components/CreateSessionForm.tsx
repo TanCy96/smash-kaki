@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { createSessionAction } from "@/app/actions";
 import { Button, Card, Field, Input, Textarea } from "@/components/ui";
+import { defaultWeekendPollSlots } from "@/lib/poll-defaults";
 import { deviceToken } from "./device-token";
 
-type TimeOptionDraft = { id: string; available: boolean };
+type TimeOptionDraft = { id: string; startsAt: string; available: boolean };
 
-function newOption(id = crypto.randomUUID()): TimeOptionDraft {
-  return { id, available: true };
+function newOption(id = crypto.randomUUID(), startsAt = ""): TimeOptionDraft {
+  return { id, startsAt, available: true };
 }
 
 export function CreateSessionForm({ displayName }: { displayName: string }) {
@@ -16,11 +17,30 @@ export function CreateSessionForm({ displayName }: { displayName: string }) {
   const [options, setOptions] = useState<TimeOptionDraft[]>([
     newOption("option-1"),
     newOption("option-2"),
+    newOption("option-3"),
+    newOption("option-4"),
   ]);
 
+  // Prefill the four starting options with the upcoming weekend's default
+  // slots after mount (kept out of initial state to avoid an SSR/client
+  // hydration mismatch on the date).
   useEffect(() => {
     setToken(deviceToken());
+    const slots = defaultWeekendPollSlots(new Date());
+    setOptions((current) =>
+      current.map((option, index) =>
+        index < slots.length ? { ...option, startsAt: slots[index] } : option
+      )
+    );
   }, []);
+
+  function updateOption(id: string, patch: Partial<TimeOptionDraft>) {
+    setOptions((current) =>
+      current.map((option) =>
+        option.id === id ? { ...option, ...patch } : option
+      )
+    );
+  }
 
   return (
     <Card>
@@ -64,7 +84,16 @@ export function CreateSessionForm({ displayName }: { displayName: string }) {
             >
               <div className="flex flex-col gap-2">
                 <Field label="Date and time">
-                  <Input name="option_starts_at" type="datetime-local" required />
+                  <Input
+                    name="option_starts_at"
+                    type="datetime-local"
+                    step={3600}
+                    value={option.startsAt}
+                    onChange={(e) =>
+                      updateOption(option.id, { startsAt: e.target.value })
+                    }
+                    required
+                  />
                 </Field>
                 <Field label="Duration (minutes)">
                   <Input name="option_duration_min" type="number" min="1" defaultValue={120} required />
