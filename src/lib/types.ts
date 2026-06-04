@@ -36,6 +36,7 @@ export interface TimeOptionVote {
   name: string;
   participant_token: string;
   player_id: string | null;
+  added_by_token: string | null;
   created_at: string;
 }
 

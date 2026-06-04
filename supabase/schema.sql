@@ -45,6 +45,7 @@ create table time_option_votes (
   name text not null,
   participant_token text not null,
   player_id uuid references profiles(id) on delete set null,
+  added_by_token text,
   created_at timestamptz not null default now(),
   foreign key (session_time_option_id, session_id)
     references session_time_options(id, session_id)
@@ -73,6 +74,7 @@ create unique index time_option_votes_device_option_idx
 create unique index time_option_votes_player_option_idx
   on time_option_votes (player_id, session_time_option_id)
   where player_id is not null;
+create index time_option_votes_added_by_idx on time_option_votes (session_id, added_by_token);
 create index participants_session_idx  on participants (session_id);
 create index participants_added_by_idx on participants (session_id, added_by_token);
 

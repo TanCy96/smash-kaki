@@ -1,3 +1,6 @@
+/** Sentinel stored in time_option_votes.added_by_token for organizer-added poll friends. */
+export const MANAGER_OWNER = "manager";
+
 export type PollVoteIdentity = {
   id: string;
   name: string;
