@@ -419,7 +419,7 @@ export async function forgotPasswordAction(formData: FormData) {
   const { error } = await supabase.auth.resetPasswordForEmail(
     String(formData.get("email")),
     {
-      redirectTo: `${base}/login`,
+      redirectTo: `${base}/auth/callback?next=/update-password`,
     }
   );
   if (error) {
@@ -427,4 +427,31 @@ export async function forgotPasswordAction(formData: FormData) {
   }
 
   redirect("/login?reset=sent");
+}
+
+const updatePasswordSchema = z.object({
+  password: z.string().min(6),
+});
+
+export async function updatePasswordAction(formData: FormData) {
+  const parsed = updatePasswordSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    redirect(
+      authErrorRedirectPath(
+        "/update-password",
+        "Password must be at least 6 characters."
+      )
+    );
+  }
+
+  const supabase = await serverAuth();
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+  });
+  if (error) {
+    redirect(authErrorRedirectPath("/update-password", authErrorMessage(error)));
+  }
+
+  revalidatePath("/");
+  redirect("/");
 }
