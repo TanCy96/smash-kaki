@@ -49,8 +49,9 @@ export interface Participant {
   name: string;
   rsvp: Rsvp;
   attended: boolean;
-  participant_token: string;
+  participant_token: string | null;
   player_id: string | null;
+  added_by_token: string | null;
   created_at: string;
 }
 

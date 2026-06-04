@@ -10,6 +10,7 @@ const p = (over: Partial<Participant>): Participant => ({
   attended: false,
   participant_token: "dev1",
   player_id: null,
+  added_by_token: null,
   created_at: "",
   ...over,
 });

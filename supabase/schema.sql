@@ -57,8 +57,9 @@ create table participants (
   name text not null,
   rsvp text not null check (rsvp in ('going','maybe','cant')),
   attended boolean not null default false,
-  participant_token text not null,
+  participant_token text,
   player_id uuid references profiles(id) on delete set null,
+  added_by_token text,
   created_at timestamptz not null default now()
 );
 
@@ -73,6 +74,7 @@ create unique index time_option_votes_player_option_idx
   on time_option_votes (player_id, session_time_option_id)
   where player_id is not null;
 create index participants_session_idx  on participants (session_id);
+create index participants_added_by_idx on participants (session_id, added_by_token);
 
 -- RLS on; data access is via the server service-role key (bypasses RLS).
 -- The anon client is used ONLY for auth flows, never for table reads/writes.
