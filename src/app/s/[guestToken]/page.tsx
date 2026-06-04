@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { AuthNav } from "@/components/AuthNav";
 import { RsvpForm } from "@/components/RsvpForm";
 import { TimePollForm } from "@/components/TimePollForm";
 import { TimePollSummary } from "@/components/TimePollSummary";
@@ -28,6 +29,7 @@ export default async function GuestPage({
 
     return (
       <PageShell
+        headerRight={<AuthNav />}
         aside={
           <Card highlight title="Pick your available times">
             {submitted === "1" && <Alert tone="success">Availability saved.</Alert>}
@@ -73,6 +75,7 @@ export default async function GuestPage({
 
   return (
     <PageShell
+      headerRight={<AuthNav />}
       aside={
         <Card highlight title="Your RSVP">
           {submitted === "1" && <Alert tone="success">RSVP submitted.</Alert>}

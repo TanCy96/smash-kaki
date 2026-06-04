@@ -1,34 +1,13 @@
-import Link from "next/link";
+import { AuthNav } from "@/components/AuthNav";
 import { CreateSessionForm } from "@/components/CreateSessionForm";
-import { Button, Card, PageShell } from "@/components/ui";
+import { Card, PageShell } from "@/components/ui";
 import { getProfile } from "@/lib/db";
 import { currentPlayerId } from "@/lib/supabase-auth";
-import { logoutAction } from "./actions";
 
 export default async function CreatePage() {
   const playerId = await currentPlayerId();
   const profile = playerId ? await getProfile(playerId) : null;
   const displayName = profile?.display_name ?? "";
-
-  const headerRight = playerId ? (
-    <form action={logoutAction} className="flex items-center gap-3 text-sm">
-      <span className="max-w-32 truncate font-medium text-muted">
-        {displayName || "Signed in"}
-      </span>
-      <Button variant="ghost" className="px-2 py-1">
-        Log out
-      </Button>
-    </form>
-  ) : (
-    <div className="flex gap-2 text-sm font-semibold">
-      <Link href="/login" className="text-primary hover:underline">
-        Log in
-      </Link>
-      <Link href="/register" className="text-primary hover:underline">
-        Register
-      </Link>
-    </div>
-  );
 
   const aside = (
     <Card highlight title="How it works">
@@ -41,7 +20,10 @@ export default async function CreatePage() {
   );
 
   return (
-    <PageShell headerRight={headerRight} aside={aside}>
+    <PageShell
+      headerRight={<AuthNav playerId={playerId} displayName={displayName} />}
+      aside={aside}
+    >
       <div>
         <h1 className="text-2xl font-extrabold text-heading">Plan a session</h1>
         <p className="mt-1 text-sm text-muted">
