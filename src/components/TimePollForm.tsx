@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { timePollVoteAction } from "@/app/actions";
+import { getMyPollFriends, timePollVoteAction } from "@/app/actions";
 import { Button, Field, Input } from "@/components/ui";
 import { formatMalaysiaDateTime } from "@/lib/datetime";
 import type { SessionTimeOptionWithVotes } from "@/lib/types";
@@ -19,9 +19,10 @@ export function TimePollForm({
   const [token, setToken] = useState("");
   const [name, setName] = useState("");
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [friends, setFriends] = useState<string[]>([]);
 
   // On load, recognise a returning guest by their device token and prefill
-  // their previous name and ticked availability instead of a blank form.
+  // their previous name, ticked availability, and brought-friend names.
   useEffect(() => {
     const current = deviceToken();
     setToken(current);
@@ -29,13 +30,17 @@ export function TimePollForm({
     const mine = options.filter((option) =>
       option.votes.some((vote) => vote.participant_token === current)
     );
-    if (mine.length === 0) return;
+    if (mine.length > 0) {
+      setChecked(new Set(mine.map((option) => option.id)));
+      const priorName = mine
+        .flatMap((option) => option.votes)
+        .find((vote) => vote.participant_token === current)?.name;
+      if (priorName) setName(priorName);
+    }
 
-    setChecked(new Set(mine.map((option) => option.id)));
-    const priorName = mine
-      .flatMap((option) => option.votes)
-      .find((vote) => vote.participant_token === current)?.name;
-    if (priorName) setName(priorName);
+    getMyPollFriends(guestToken, current).then((names) => {
+      if (names.length > 0) setFriends(names);
+    });
     // Runs once on mount; options is stable for the mounted form.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -92,6 +97,43 @@ export function TimePollForm({
           </label>
         ))}
       </div>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-sm font-medium text-ink">
+          Bringing friends? (optional) They&apos;ll join for the times you tick.
+        </p>
+        {friends.map((friend, index) => (
+          <div key={index} className="flex gap-2">
+            <Input
+              name="friend_name"
+              placeholder="Friend's name"
+              value={friend}
+              onChange={(e) =>
+                setFriends((prev) =>
+                  prev.map((value, i) => (i === index ? e.target.value : value))
+                )
+              }
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() =>
+                setFriends((prev) => prev.filter((_, i) => i !== index))
+              }
+            >
+              Remove
+            </Button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => setFriends((prev) => [...prev, ""])}
+        >
+          + Add another
+        </Button>
+      </div>
+
       <Button disabled={!token}>Save availability</Button>
     </form>
   );

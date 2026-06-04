@@ -26,6 +26,10 @@ export default async function GuestPage({
 
   if (session.lifecycle === "draft") {
     const options = await listSessionTimeOptions(session.id);
+    const clientOptions = options.map((option) => ({
+      ...option,
+      votes: option.votes.map((vote) => ({ ...vote, added_by_token: null })),
+    }));
 
     return (
       <PageShell
@@ -36,7 +40,7 @@ export default async function GuestPage({
             <div className="mt-3">
               <TimePollForm
                 guestToken={guestToken}
-                options={options}
+                options={clientOptions}
                 disabled={session.status === "cancelled"}
               />
             </div>
@@ -54,7 +58,7 @@ export default async function GuestPage({
           {session.notes && <p className="mt-1 text-sm text-muted">{session.notes}</p>}
         </div>
         <Card title="Current preferences">
-          <TimePollSummary options={options} />
+          <TimePollSummary options={clientOptions} />
         </Card>
       </PageShell>
     );
