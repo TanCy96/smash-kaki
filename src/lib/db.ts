@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import type { PollVoteIdentity } from "./time-poll";
+import { MANAGER_OWNER } from "./time-poll";
 import type {
   Participant,
   Profile,
@@ -345,6 +346,83 @@ export async function replaceTimeOptionVotes(input: {
   );
 
   if (error) throw error;
+}
+
+export async function deletePollVotesAddedBy(
+  sessionId: string,
+  addedByToken: string
+): Promise<void> {
+  const { error } = await admin
+    .from("time_option_votes")
+    .delete()
+    .eq("session_id", sessionId)
+    .eq("added_by_token", addedByToken);
+  if (error) throw error;
+}
+
+export async function deletePollVotesByToken(
+  sessionId: string,
+  friendToken: string
+): Promise<void> {
+  const { error } = await admin
+    .from("time_option_votes")
+    .delete()
+    .eq("session_id", sessionId)
+    .eq("participant_token", friendToken)
+    .eq("added_by_token", MANAGER_OWNER);
+  if (error) throw error;
+}
+
+export async function insertTimeOptionVotes(
+  rows: {
+    session_id: string;
+    session_time_option_id: string;
+    name: string;
+    participant_token: string;
+    player_id: string | null;
+    added_by_token: string | null;
+  }[]
+): Promise<void> {
+  if (rows.length === 0) return;
+  const { error } = await admin.from("time_option_votes").insert(rows);
+  if (error) throw error;
+}
+
+export async function listManagerPollFriends(
+  sessionId: string
+): Promise<{ friendToken: string; name: string; optionIds: string[] }[]> {
+  const { data, error } = await admin
+    .from("time_option_votes")
+    .select("session_time_option_id, name, participant_token")
+    .eq("session_id", sessionId)
+    .eq("added_by_token", MANAGER_OWNER)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+
+  const rows =
+    (data as {
+      session_time_option_id: string;
+      name: string;
+      participant_token: string;
+    }[]) ?? [];
+
+  const byToken = new Map<
+    string,
+    { friendToken: string; name: string; optionIds: string[] }
+  >();
+  for (const row of rows) {
+    const existing = byToken.get(row.participant_token);
+    if (existing) {
+      existing.optionIds.push(row.session_time_option_id);
+    } else {
+      byToken.set(row.participant_token, {
+        friendToken: row.participant_token,
+        name: row.name,
+        optionIds: [row.session_time_option_id],
+      });
+    }
+  }
+  return [...byToken.values()];
 }
 
 export async function getSessionTimeOption(
