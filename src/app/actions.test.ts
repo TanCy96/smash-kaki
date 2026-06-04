@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const redirectMock = vi.hoisted(() => vi.fn());
 const revalidatePathMock = vi.hoisted(() => vi.fn());
 const currentPlayerIdMock = vi.hoisted(() => vi.fn());
+const generateTokenMock = vi.hoisted(() => vi.fn());
 const dbMock = vi.hoisted(() => ({
   getSessionByGuestToken: vi.fn(),
   getSessionByManageToken: vi.fn(),
@@ -17,10 +18,16 @@ const dbMock = vi.hoisted(() => ({
   getSessionTimeOption: vi.fn(),
   listVotesForTimeOption: vi.fn(),
   updateSessionDetails: vi.fn(),
+  deletePollVotesAddedBy: vi.fn(),
+  insertTimeOptionVotes: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   redirect: redirectMock,
+}));
+
+vi.mock("@/lib/tokens", () => ({
+  generateToken: generateTokenMock,
 }));
 
 vi.mock("next/cache", () => ({
@@ -53,6 +60,9 @@ describe("timePollVoteAction", () => {
     dbMock.getSessionTimeOption.mockReset();
     dbMock.listVotesForTimeOption.mockReset();
     dbMock.updateSessionDetails.mockReset();
+    dbMock.deletePollVotesAddedBy.mockReset();
+    dbMock.insertTimeOptionVotes.mockReset();
+    generateTokenMock.mockReset();
   });
 
   it("replaces a returning voter's draft poll choices with canonical previous identity", async () => {
@@ -100,6 +110,63 @@ describe("timePollVoteAction", () => {
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/s/guest-1");
     expect(revalidatePathMock).toHaveBeenCalledWith("/m/manage-1");
+  });
+
+  it("creates ride-along friend votes on the host's selected slots", async () => {
+    const { timePollVoteAction } = await import("./actions");
+    generateTokenMock.mockReturnValueOnce("ft-1").mockReturnValueOnce("ft-2");
+
+    const formData = new FormData();
+    formData.set("guest_token", "guest-1");
+    formData.set("name", "Alex");
+    formData.set("device_token", "device-1");
+    formData.append("time_option_id", "option-2");
+    formData.append("friend_name", " Ali ");
+    formData.append("friend_name", "Siti");
+
+    dbMock.getSessionByGuestToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "active",
+      lifecycle: "draft",
+    });
+    dbMock.listSessionTimeOptions.mockResolvedValue([
+      { id: "option-1", votes: [] },
+      { id: "option-2", votes: [] },
+    ]);
+    dbMock.listTimePollVoters.mockResolvedValue([]);
+    dbMock.replaceTimeOptionVotes.mockResolvedValue(undefined);
+    dbMock.deletePollVotesAddedBy.mockResolvedValue(undefined);
+    dbMock.insertTimeOptionVotes.mockResolvedValue(undefined);
+    currentPlayerIdMock.mockResolvedValue(null);
+
+    await expect(timePollVoteAction(formData)).rejects.toThrow(
+      "redirect:/s/guest-1?submitted=1"
+    );
+
+    expect(dbMock.deletePollVotesAddedBy).toHaveBeenCalledWith(
+      "session-1",
+      "device-1"
+    );
+    expect(dbMock.insertTimeOptionVotes).toHaveBeenCalledWith([
+      {
+        session_id: "session-1",
+        session_time_option_id: "option-2",
+        name: "Ali",
+        participant_token: "ft-1",
+        player_id: null,
+        added_by_token: "device-1",
+      },
+      {
+        session_id: "session-1",
+        session_time_option_id: "option-2",
+        name: "Siti",
+        participant_token: "ft-2",
+        player_id: null,
+        added_by_token: "device-1",
+      },
+    ]);
   });
 });
 

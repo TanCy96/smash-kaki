@@ -248,9 +248,52 @@ export async function timePollVoteAction(formData: FormData) {
     session_time_option_ids: optionIds,
   });
 
+  const friendNames = normalizePlayerNames(
+    formData.getAll("friend_name").map(String),
+    { max: 10 }
+  );
+
+  await db.deletePollVotesAddedBy(session.id, value.device_token);
+
+  if (optionIds.length > 0 && friendNames.length > 0) {
+    const rows = friendNames.flatMap((friendName) => {
+      const friendToken = generateToken();
+      return optionIds.map((optionId) => ({
+        session_id: session.id,
+        session_time_option_id: optionId,
+        name: friendName,
+        participant_token: friendToken,
+        player_id: null,
+        added_by_token: value.device_token,
+      }));
+    });
+    await db.insertTimeOptionVotes(rows);
+  }
+
   revalidatePath(`/s/${value.guest_token}`);
   revalidatePath(`/m/${session.manage_token}`);
   redirect(`/s/${value.guest_token}?submitted=1`);
+}
+
+export async function getMyPollFriends(
+  guestToken: string,
+  deviceToken: string
+): Promise<string[]> {
+  const session = await db.getSessionByGuestToken(guestToken);
+  if (!session) return [];
+
+  const options = await db.listSessionTimeOptions(session.id);
+  const names: string[] = [];
+  const seen = new Set<string>();
+  for (const option of options) {
+    for (const vote of option.votes) {
+      if (vote.added_by_token === deviceToken && !seen.has(vote.participant_token)) {
+        seen.add(vote.participant_token);
+        names.push(vote.name);
+      }
+    }
+  }
+  return names;
 }
 
 const finalizeTimeOptionSchema = z.object({
