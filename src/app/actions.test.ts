@@ -20,6 +20,7 @@ const dbMock = vi.hoisted(() => ({
   updateSessionDetails: vi.fn(),
   deletePollVotesAddedBy: vi.fn(),
   insertTimeOptionVotes: vi.fn(),
+  deletePollVotesByToken: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -614,5 +615,126 @@ describe("getMyPollFriends", () => {
 
     expect(result).toEqual([]);
     expect(dbMock.listSessionTimeOptions).not.toHaveBeenCalled();
+  });
+});
+
+describe("addPollFriendAction", () => {
+  beforeEach(() => {
+    redirectMock.mockReset();
+    redirectMock.mockImplementation((path: string) => {
+      throw new Error(`redirect:${path}`);
+    });
+    revalidatePathMock.mockReset();
+    dbMock.getSessionByManageToken.mockReset();
+    dbMock.listSessionTimeOptions.mockReset();
+    dbMock.insertTimeOptionVotes.mockReset();
+    generateTokenMock.mockReset();
+  });
+
+  it("inserts one manager-owned vote per selected slot", async () => {
+    const { addPollFriendAction } = await import("./actions");
+    generateTokenMock.mockReturnValue("mft-1");
+
+    const formData = new FormData();
+    formData.set("manage_token", "manage-1");
+    formData.set("name", " Bob ");
+    formData.append("time_option_id", "option-1");
+    formData.append("time_option_id", "option-2");
+    formData.append("time_option_id", "bogus");
+
+    dbMock.getSessionByManageToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "active",
+      lifecycle: "draft",
+    });
+    dbMock.listSessionTimeOptions.mockResolvedValue([
+      { id: "option-1", votes: [] },
+      { id: "option-2", votes: [] },
+    ]);
+    dbMock.insertTimeOptionVotes.mockResolvedValue(undefined);
+
+    await expect(addPollFriendAction(formData)).rejects.toThrow(
+      "redirect:/m/manage-1?saved=players"
+    );
+
+    expect(dbMock.insertTimeOptionVotes).toHaveBeenCalledWith([
+      {
+        session_id: "session-1",
+        session_time_option_id: "option-1",
+        name: "Bob",
+        participant_token: "mft-1",
+        player_id: null,
+        added_by_token: "manager",
+      },
+      {
+        session_id: "session-1",
+        session_time_option_id: "option-2",
+        name: "Bob",
+        participant_token: "mft-1",
+        player_id: null,
+        added_by_token: "manager",
+      },
+    ]);
+  });
+
+  it("redirects without inserting when the session is not a draft", async () => {
+    const { addPollFriendAction } = await import("./actions");
+    const formData = new FormData();
+    formData.set("manage_token", "manage-1");
+    formData.set("name", "Bob");
+    formData.append("time_option_id", "option-1");
+
+    dbMock.getSessionByManageToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "active",
+      lifecycle: "finalized",
+    });
+
+    await expect(addPollFriendAction(formData)).rejects.toThrow(
+      "redirect:/m/manage-1"
+    );
+
+    expect(dbMock.insertTimeOptionVotes).not.toHaveBeenCalled();
+  });
+});
+
+describe("removePollFriendAction", () => {
+  beforeEach(() => {
+    redirectMock.mockReset();
+    redirectMock.mockImplementation((path: string) => {
+      throw new Error(`redirect:${path}`);
+    });
+    revalidatePathMock.mockReset();
+    dbMock.getSessionByManageToken.mockReset();
+    dbMock.deletePollVotesByToken.mockReset();
+  });
+
+  it("deletes the friend's votes by their synthetic token", async () => {
+    const { removePollFriendAction } = await import("./actions");
+    const formData = new FormData();
+    formData.set("manage_token", "manage-1");
+    formData.set("friend_token", "mft-1");
+
+    dbMock.getSessionByManageToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "active",
+      lifecycle: "draft",
+    });
+    dbMock.deletePollVotesByToken.mockResolvedValue(undefined);
+
+    await expect(removePollFriendAction(formData)).rejects.toThrow(
+      "redirect:/m/manage-1?saved=players"
+    );
+
+    expect(dbMock.deletePollVotesByToken).toHaveBeenCalledWith(
+      "session-1",
+      "mft-1"
+    );
   });
 });

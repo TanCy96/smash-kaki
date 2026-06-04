@@ -9,6 +9,7 @@ import { resolveIdentity } from "@/lib/identity";
 import { currentPlayerId, serverAuth } from "@/lib/supabase-auth";
 import {
   malaysiaDateTimeLocalToIso,
+  MANAGER_OWNER,
   resolvePollVoter,
   selectedOptionIds,
 } from "@/lib/time-poll";
@@ -593,6 +594,62 @@ export async function removeParticipantAction(formData: FormData) {
   }
 
   await db.deleteParticipant(participantId, session.id);
+
+  revalidatePath(`/m/${manageToken}`);
+  revalidatePath(`/s/${session.guest_token}`);
+  redirect(`/m/${manageToken}?saved=players`);
+}
+
+export async function addPollFriendAction(formData: FormData) {
+  const manageToken = String(formData.get("manage_token"));
+  const name = String(formData.get("name") ?? "").trim();
+  const session = await db.getSessionByManageToken(manageToken);
+  if (
+    !session ||
+    session.status === "cancelled" ||
+    session.lifecycle !== "draft"
+  ) {
+    redirect(`/m/${manageToken}`);
+  }
+
+  const options = await db.listSessionTimeOptions(session.id);
+  const optionIds = selectedOptionIds(
+    formData.getAll("time_option_id").map(String),
+    options.map((option) => option.id)
+  );
+
+  if (name && optionIds.length > 0) {
+    const friendToken = generateToken();
+    await db.insertTimeOptionVotes(
+      optionIds.map((optionId) => ({
+        session_id: session.id,
+        session_time_option_id: optionId,
+        name,
+        participant_token: friendToken,
+        player_id: null,
+        added_by_token: MANAGER_OWNER,
+      }))
+    );
+  }
+
+  revalidatePath(`/m/${manageToken}`);
+  revalidatePath(`/s/${session.guest_token}`);
+  redirect(`/m/${manageToken}?saved=players`);
+}
+
+export async function removePollFriendAction(formData: FormData) {
+  const manageToken = String(formData.get("manage_token"));
+  const friendToken = String(formData.get("friend_token"));
+  const session = await db.getSessionByManageToken(manageToken);
+  if (
+    !session ||
+    session.status === "cancelled" ||
+    session.lifecycle !== "draft"
+  ) {
+    redirect(`/m/${manageToken}`);
+  }
+
+  await db.deletePollVotesByToken(session.id, friendToken);
 
   revalidatePath(`/m/${manageToken}`);
   revalidatePath(`/s/${session.guest_token}`);
