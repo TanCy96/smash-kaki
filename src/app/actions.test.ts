@@ -419,6 +419,27 @@ describe("addPlayersAction", () => {
       added_by_token: null,
     });
   });
+
+  it("redirects without inserting when the session is not finalized", async () => {
+    const { addPlayersAction } = await import("./actions");
+    const formData = new FormData();
+    formData.set("manage_token", "manage-1");
+    formData.append("player_name", "Ali");
+
+    dbMock.getSessionByManageToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "active",
+      lifecycle: "draft",
+    });
+
+    await expect(addPlayersAction(formData)).rejects.toThrow(
+      "redirect:/m/manage-1"
+    );
+
+    expect(dbMock.insertParticipant).not.toHaveBeenCalled();
+  });
 });
 
 describe("removeParticipantAction", () => {
