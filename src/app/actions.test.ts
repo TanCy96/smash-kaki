@@ -10,6 +10,7 @@ const dbMock = vi.hoisted(() => ({
   insertParticipant: vi.fn(),
   updateParticipant: vi.fn(),
   deleteGuestsOf: vi.fn(),
+  deleteParticipant: vi.fn(),
   listSessionTimeOptions: vi.fn(),
   listTimePollVoters: vi.fn(),
   replaceTimeOptionVotes: vi.fn(),
@@ -365,5 +366,94 @@ describe("rsvpAction", () => {
       player_id: null,
       added_by_token: "device-1",
     });
+  });
+});
+
+describe("addPlayersAction", () => {
+  beforeEach(() => {
+    redirectMock.mockReset();
+    redirectMock.mockImplementation((path: string) => {
+      throw new Error(`redirect:${path}`);
+    });
+    revalidatePathMock.mockReset();
+    dbMock.getSessionByManageToken.mockReset();
+    dbMock.insertParticipant.mockReset();
+  });
+
+  it("inserts each normalized name as a going manager-added player", async () => {
+    const { addPlayersAction } = await import("./actions");
+    const formData = new FormData();
+    formData.set("manage_token", "manage-1");
+    formData.append("player_name", " Ali ");
+    formData.append("player_name", "ali");
+    formData.append("player_name", "Siti");
+
+    dbMock.getSessionByManageToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "active",
+      lifecycle: "finalized",
+    });
+    dbMock.insertParticipant.mockResolvedValue({ id: "participant-1" });
+
+    await expect(addPlayersAction(formData)).rejects.toThrow(
+      "redirect:/m/manage-1?saved=players"
+    );
+
+    expect(dbMock.insertParticipant).toHaveBeenCalledTimes(2);
+    expect(dbMock.insertParticipant).toHaveBeenNthCalledWith(1, {
+      session_id: "session-1",
+      name: "Ali",
+      rsvp: "going",
+      participant_token: null,
+      player_id: null,
+      added_by_token: null,
+    });
+    expect(dbMock.insertParticipant).toHaveBeenNthCalledWith(2, {
+      session_id: "session-1",
+      name: "Siti",
+      rsvp: "going",
+      participant_token: null,
+      player_id: null,
+      added_by_token: null,
+    });
+  });
+});
+
+describe("removeParticipantAction", () => {
+  beforeEach(() => {
+    redirectMock.mockReset();
+    redirectMock.mockImplementation((path: string) => {
+      throw new Error(`redirect:${path}`);
+    });
+    revalidatePathMock.mockReset();
+    dbMock.getSessionByManageToken.mockReset();
+    dbMock.deleteParticipant.mockReset();
+  });
+
+  it("deletes the participant scoped to the session", async () => {
+    const { removeParticipantAction } = await import("./actions");
+    const formData = new FormData();
+    formData.set("manage_token", "manage-1");
+    formData.set("participant_id", "participant-9");
+
+    dbMock.getSessionByManageToken.mockResolvedValue({
+      id: "session-1",
+      guest_token: "guest-1",
+      manage_token: "manage-1",
+      status: "active",
+      lifecycle: "finalized",
+    });
+    dbMock.deleteParticipant.mockResolvedValue(undefined);
+
+    await expect(removeParticipantAction(formData)).rejects.toThrow(
+      "redirect:/m/manage-1?saved=players"
+    );
+
+    expect(dbMock.deleteParticipant).toHaveBeenCalledWith(
+      "participant-9",
+      "session-1"
+    );
   });
 });

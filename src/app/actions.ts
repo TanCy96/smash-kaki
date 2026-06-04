@@ -504,3 +504,48 @@ export async function updatePasswordAction(formData: FormData) {
   revalidatePath("/");
   redirect("/");
 }
+
+export async function addPlayersAction(formData: FormData) {
+  const manageToken = String(formData.get("manage_token"));
+  const session = await db.getSessionByManageToken(manageToken);
+  if (
+    !session ||
+    session.status === "cancelled" ||
+    session.lifecycle !== "finalized"
+  ) {
+    redirect(`/m/${manageToken}`);
+  }
+
+  const names = normalizePlayerNames(
+    formData.getAll("player_name").map(String),
+    { max: 10 }
+  );
+
+  for (const name of names) {
+    await db.insertParticipant({
+      session_id: session.id,
+      name,
+      rsvp: "going",
+      participant_token: null,
+      player_id: null,
+      added_by_token: null,
+    });
+  }
+
+  revalidatePath(`/m/${manageToken}`);
+  revalidatePath(`/s/${session.guest_token}`);
+  redirect(`/m/${manageToken}?saved=players`);
+}
+
+export async function removeParticipantAction(formData: FormData) {
+  const manageToken = String(formData.get("manage_token"));
+  const participantId = String(formData.get("participant_id"));
+  const session = await db.getSessionByManageToken(manageToken);
+  if (!session) redirect(`/m/${manageToken}`);
+
+  await db.deleteParticipant(participantId, session.id);
+
+  revalidatePath(`/m/${manageToken}`);
+  revalidatePath(`/s/${session.guest_token}`);
+  redirect(`/m/${manageToken}?saved=players`);
+}
