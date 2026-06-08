@@ -16,6 +16,7 @@ create table sessions (
   location text not null,
   court_numbers text,
   notes text,
+  manager_id uuid references profiles(id) on delete set null,
   status text not null default 'active' check (status in ('active','cancelled')),
   lifecycle text not null default 'draft' check (lifecycle in ('draft','finalized')),
   court_cost numeric,
@@ -66,6 +67,7 @@ create table participants (
 
 create index sessions_guest_token_idx  on sessions (guest_token);
 create index sessions_manage_token_idx on sessions (manage_token);
+create index sessions_manager_idx      on sessions (manager_id);
 create index session_time_options_session_idx on session_time_options (session_id);
 create index time_option_votes_session_idx on time_option_votes (session_id);
 create index time_option_votes_option_idx on time_option_votes (session_time_option_id);
@@ -87,6 +89,13 @@ alter table time_option_votes    enable row level security;
 alter table participants         enable row level security;
 
 -- Manual migration for existing Supabase projects:
+-- 0. Add the session owner link (for the "My sessions" recovery page).
+--    Apply this BEFORE/with the deploy: createSession now always writes
+--    manager_id, so an absent column makes all session creation fail.
+-- alter table sessions
+--   add column manager_id uuid references profiles(id) on delete set null;
+-- create index sessions_manager_idx on sessions (manager_id);
+--
 -- 1. Add the draft/finalized lifecycle and loosen confirmed-session timing.
 -- alter table sessions add column lifecycle text;
 -- update sessions set lifecycle = 'finalized';
