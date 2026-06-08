@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
+import { isWithinRecoveryWindow } from "./session-recovery";
 import type { PollVoteIdentity } from "./time-poll";
 import { MANAGER_OWNER } from "./time-poll";
 import type {
@@ -76,7 +77,10 @@ export async function listSessionsManagedBy(
     .eq("status", "active")
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []) as Session[];
+  const now = Date.now();
+  return ((data ?? []) as Session[]).filter((s) =>
+    isWithinRecoveryWindow(s, now)
+  );
 }
 
 export async function listSessionsJoinedBy(
@@ -112,8 +116,14 @@ export async function listSessionsJoinedBy(
     .in("id", ids);
   if (error) throw error;
 
+  const now = Date.now();
   return (data as Session[])
-    .filter((s) => s.status === "active" && s.manager_id !== playerId)
+    .filter(
+      (s) =>
+        s.status === "active" &&
+        s.manager_id !== playerId &&
+        isWithinRecoveryWindow(s, now)
+    )
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 }
 

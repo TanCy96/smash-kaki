@@ -50,6 +50,12 @@ No other table changes. "Joined" reuses existing `player_id` columns.
   session id. Including poll voters means a draft poll the user voted in still recovers
   its guest link.
 
+Both lists also drop sessions that are **over by more than 24h**, via the pure helper
+`isWithinRecoveryWindow(session, nowMs)` (`src/lib/session-recovery.ts`): a finalized
+session expires 24h after it ends (`starts_at + duration_min`); draft polls (no fixed
+time) never expire. Just-played sessions stay recoverable for a day without accumulating
+old history. Direct manage/guest links are unaffected — only the lists filter.
+
 ## Page `/sessions`
 
 New server component at `src/app/sessions/page.tsx`.

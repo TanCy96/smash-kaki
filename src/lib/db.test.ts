@@ -174,6 +174,26 @@ describe("listSessionsManagedBy", () => {
     expect(chain.eq).toHaveBeenCalledWith("status", "active");
     expect(chain.order).toHaveBeenCalledWith("created_at", { ascending: false });
   });
+
+  it("hides sessions that ended more than 24h ago", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-10T00:00:00Z"));
+    fromMock.mockReturnValue(
+      query({
+        data: [
+          // ended 2h before now -> kept
+          { id: "live", manager_id: "player-1", status: "active", starts_at: "2026-06-09T20:00:00Z", duration_min: 120 },
+          // ended ~34h before now -> hidden
+          { id: "stale", manager_id: "player-1", status: "active", starts_at: "2026-06-08T12:00:00Z", duration_min: 120 },
+        ],
+        error: null,
+      })
+    );
+
+    const result = await listSessionsManagedBy("player-1");
+    expect(result.map((s) => s.id)).toEqual(["live"]);
+    vi.useRealTimers();
+  });
 });
 
 describe("listSessionsJoinedBy", () => {
@@ -211,5 +231,29 @@ describe("listSessionsJoinedBy", () => {
     });
 
     await expect(listSessionsJoinedBy("player-1")).resolves.toEqual([]);
+  });
+
+  it("hides joined sessions that ended more than 24h ago", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-10T00:00:00Z"));
+    fromMock.mockImplementation((table: string) => {
+      if (table === "participants") {
+        return query({ data: [{ session_id: "live" }, { session_id: "stale" }], error: null });
+      }
+      if (table === "time_option_votes") {
+        return query({ data: [], error: null });
+      }
+      return query({
+        data: [
+          { id: "live", status: "active", manager_id: null, starts_at: "2026-06-09T20:00:00Z", duration_min: 120, created_at: "2026-06-01" },
+          { id: "stale", status: "active", manager_id: null, starts_at: "2026-06-08T12:00:00Z", duration_min: 120, created_at: "2026-06-02" },
+        ],
+        error: null,
+      });
+    });
+
+    const result = await listSessionsJoinedBy("player-1");
+    expect(result.map((s) => s.id)).toEqual(["live"]);
+    vi.useRealTimers();
   });
 });
