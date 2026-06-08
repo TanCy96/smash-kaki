@@ -172,5 +172,6 @@ describe("listSessionsManagedBy", () => {
     expect(fromMock).toHaveBeenCalledWith("sessions");
     expect(chain.eq).toHaveBeenCalledWith("manager_id", "player-1");
     expect(chain.eq).toHaveBeenCalledWith("status", "active");
+    expect(chain.order).toHaveBeenCalledWith("created_at", { ascending: false });
   });
 });
