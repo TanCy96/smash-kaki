@@ -69,6 +69,7 @@ export async function createSessionAction(formData: FormData) {
     court_numbers: value.court_numbers || null,
     notes: value.notes || null,
     lifecycle: "draft",
+    manager_id: playerId,
   });
 
   try {

@@ -21,6 +21,9 @@ const dbMock = vi.hoisted(() => ({
   deletePollVotesAddedBy: vi.fn(),
   insertTimeOptionVotes: vi.fn(),
   deletePollVotesByToken: vi.fn(),
+  createSession: vi.fn(),
+  createSessionTimeOptions: vi.fn(),
+  deleteSession: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -787,6 +790,57 @@ describe("removePollFriendAction", () => {
     expect(dbMock.deletePollVotesByToken).toHaveBeenCalledWith(
       "session-1",
       "mft-1"
+    );
+  });
+});
+
+describe("createSessionAction manager_id", () => {
+  beforeEach(() => {
+    redirectMock.mockReset();
+    redirectMock.mockImplementation((path: string) => {
+      throw new Error(`redirect:${path}`);
+    });
+    currentPlayerIdMock.mockReset();
+    generateTokenMock.mockReset();
+    generateTokenMock.mockReturnValueOnce("manage-tok").mockReturnValueOnce("guest-tok");
+    dbMock.createSession = vi.fn().mockResolvedValue({
+      id: "session-1",
+      manage_token: "manage-tok",
+    });
+    dbMock.createSessionTimeOptions = vi.fn().mockResolvedValue([]);
+    dbMock.replaceTimeOptionVotes.mockReset().mockResolvedValue(undefined);
+  });
+
+  function form(): FormData {
+    const fd = new FormData();
+    fd.set("organizer_name", "Alex");
+    fd.set("title", "Friday smash");
+    fd.set("location", "Court Centre");
+    fd.set("device_token", "device-1");
+    fd.append("option_starts_at", "2026-06-12T19:00");
+    fd.append("option_duration_min", "120");
+    fd.append("option_starts_at", "2026-06-13T19:00");
+    fd.append("option_duration_min", "120");
+    return fd;
+  }
+
+  it("sets manager_id to the current player when logged in", async () => {
+    const { createSessionAction } = await import("./actions");
+    currentPlayerIdMock.mockResolvedValue("player-1");
+
+    await expect(createSessionAction(form())).rejects.toThrow("redirect:/m/manage-tok?created=1");
+    expect(dbMock.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ manager_id: "player-1" })
+    );
+  });
+
+  it("sets manager_id to null when anonymous", async () => {
+    const { createSessionAction } = await import("./actions");
+    currentPlayerIdMock.mockResolvedValue(null);
+
+    await expect(createSessionAction(form())).rejects.toThrow("redirect:/m/manage-tok?created=1");
+    expect(dbMock.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ manager_id: null })
     );
   });
 });

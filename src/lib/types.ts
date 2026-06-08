@@ -12,6 +12,7 @@ export interface Session {
   location: string;
   court_numbers: string | null;
   notes: string | null;
+  manager_id: string | null;
   status: SessionStatus;
   lifecycle: SessionLifecycle;
   court_cost: number | null;

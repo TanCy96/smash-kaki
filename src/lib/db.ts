@@ -28,6 +28,7 @@ export async function createSession(input: {
   court_numbers: string | null;
   notes: string | null;
   lifecycle?: "draft" | "finalized";
+  manager_id?: string | null;
 }): Promise<Session> {
   const { data, error } = await admin
     .from("sessions")
