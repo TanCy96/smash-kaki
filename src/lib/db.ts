@@ -79,6 +79,44 @@ export async function listSessionsManagedBy(
   return (data ?? []) as Session[];
 }
 
+export async function listSessionsJoinedBy(
+  playerId: string
+): Promise<Session[]> {
+  const [participantRows, voteRows] = await Promise.all([
+    admin
+      .from("participants")
+      .select("session_id")
+      .eq("player_id", playerId)
+      .order("created_at", { ascending: false }),
+    admin
+      .from("time_option_votes")
+      .select("session_id")
+      .eq("player_id", playerId)
+      .order("created_at", { ascending: false }),
+  ]);
+  if (participantRows.error) throw participantRows.error;
+  if (voteRows.error) throw voteRows.error;
+
+  const ids = [
+    ...new Set(
+      [...(participantRows.data ?? []), ...(voteRows.data ?? [])].map(
+        (row) => (row as { session_id: string }).session_id
+      )
+    ),
+  ];
+  if (ids.length === 0) return [];
+
+  const { data, error } = await admin
+    .from("sessions")
+    .select("*")
+    .in("id", ids);
+  if (error) throw error;
+
+  return (data as Session[])
+    .filter((s) => s.status === "active" && s.manager_id !== playerId)
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+}
+
 export async function getProfile(id: string): Promise<Profile | null> {
   const { data } = await admin
     .from("profiles")

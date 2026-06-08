@@ -8,7 +8,7 @@ vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({ from: fromMock }),
 }));
 
-import { deleteSession, listSessionsManagedBy, listTimePollVoters, replaceTimeOptionVotes } from "./db";
+import { deleteSession, listSessionsJoinedBy, listSessionsManagedBy, listTimePollVoters, replaceTimeOptionVotes } from "./db";
 
 function query(result: unknown) {
   const chain = {
@@ -173,5 +173,43 @@ describe("listSessionsManagedBy", () => {
     expect(chain.eq).toHaveBeenCalledWith("manager_id", "player-1");
     expect(chain.eq).toHaveBeenCalledWith("status", "active");
     expect(chain.order).toHaveBeenCalledWith("created_at", { ascending: false });
+  });
+});
+
+describe("listSessionsJoinedBy", () => {
+  beforeEach(() => {
+    fromMock.mockReset();
+  });
+
+  it("unions participant and voter sessions, drops managed and cancelled", async () => {
+    fromMock.mockImplementation((table: string) => {
+      if (table === "participants") {
+        return query({ data: [{ session_id: "s1" }, { session_id: "s2" }], error: null });
+      }
+      if (table === "time_option_votes") {
+        return query({ data: [{ session_id: "s2" }, { session_id: "s3" }], error: null });
+      }
+      // sessions
+      return query({
+        data: [
+          { id: "s1", status: "active", manager_id: null, created_at: "2026-06-01" },
+          { id: "s2", status: "cancelled", manager_id: null, created_at: "2026-06-02" },
+          { id: "s3", status: "active", manager_id: "player-1", created_at: "2026-06-03" },
+        ],
+        error: null,
+      });
+    });
+
+    const result = await listSessionsJoinedBy("player-1");
+    expect(result.map((s) => s.id)).toEqual(["s1"]); // s2 cancelled, s3 managed
+  });
+
+  it("returns empty without querying sessions when no joins exist", async () => {
+    fromMock.mockImplementation((table: string) => {
+      if (table === "sessions") throw new Error("should not query sessions");
+      return query({ data: [], error: null });
+    });
+
+    await expect(listSessionsJoinedBy("player-1")).resolves.toEqual([]);
   });
 });
