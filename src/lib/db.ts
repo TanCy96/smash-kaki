@@ -66,6 +66,19 @@ export async function getSessionByManageToken(
   return (data as Session) ?? null;
 }
 
+export async function listSessionsManagedBy(
+  playerId: string
+): Promise<Session[]> {
+  const { data, error } = await admin
+    .from("sessions")
+    .select("*")
+    .eq("manager_id", playerId)
+    .eq("status", "active")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Session[];
+}
+
 export async function getProfile(id: string): Promise<Profile | null> {
   const { data } = await admin
     .from("profiles")

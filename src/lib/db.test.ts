@@ -8,7 +8,7 @@ vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({ from: fromMock }),
 }));
 
-import { deleteSession, listTimePollVoters, replaceTimeOptionVotes } from "./db";
+import { deleteSession, listSessionsManagedBy, listTimePollVoters, replaceTimeOptionVotes } from "./db";
 
 function query(result: unknown) {
   const chain = {
@@ -151,5 +151,26 @@ describe("deleteSession", () => {
     expect(fromMock).toHaveBeenCalledWith("sessions");
     expect(sessionQuery.delete).toHaveBeenCalled();
     expect(sessionQuery.eq).toHaveBeenCalledWith("id", "session-1");
+  });
+});
+
+describe("listSessionsManagedBy", () => {
+  beforeEach(() => {
+    fromMock.mockReset();
+  });
+
+  it("returns active sessions owned by the player", async () => {
+    const chain = query({
+      data: [{ id: "s1", manager_id: "player-1", status: "active" }],
+      error: null,
+    });
+    fromMock.mockReturnValue(chain);
+
+    await expect(listSessionsManagedBy("player-1")).resolves.toEqual([
+      { id: "s1", manager_id: "player-1", status: "active" },
+    ]);
+    expect(fromMock).toHaveBeenCalledWith("sessions");
+    expect(chain.eq).toHaveBeenCalledWith("manager_id", "player-1");
+    expect(chain.eq).toHaveBeenCalledWith("status", "active");
   });
 });
