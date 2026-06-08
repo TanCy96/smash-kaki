@@ -28,14 +28,19 @@ export async function AuthNav({
 
   if (playerId) {
     return (
-      <form action={logoutAction} className="flex items-center gap-3 text-sm">
-        <span className="max-w-32 truncate font-medium text-muted">
-          {displayName || "Signed in"}
-        </span>
-        <Button variant="ghost" className="px-2 py-1">
-          Log out
-        </Button>
-      </form>
+      <div className="flex items-center gap-3 text-sm">
+        <Link href="/sessions" className="font-semibold text-primary hover:underline">
+          My sessions
+        </Link>
+        <form action={logoutAction} className="flex items-center gap-3">
+          <span className="max-w-32 truncate font-medium text-muted">
+            {displayName || "Signed in"}
+          </span>
+          <Button variant="ghost" className="px-2 py-1">
+            Log out
+          </Button>
+        </form>
+      </div>
     );
   }
 
