@@ -68,6 +68,7 @@ export default async function GuestPage({
 
   const participants = await listParticipants(session.id);
   const going = participants.filter((p) => p.rsvp === "going");
+  const maybe = participants.filter((p) => p.rsvp === "maybe");
   const attended = participants.filter((p) => p.attended);
   const cost = computeCost({
     courtCost: session.court_cost,
@@ -93,14 +94,31 @@ export default async function GuestPage({
       <div>
         <Badge tone="confirmed">Confirmed</Badge>
         <h1 className="mt-2 text-2xl font-extrabold text-heading">{session.title}</h1>
-        <p className="text-sm text-muted">
-          {formatMalaysiaDateTime(session.starts_at)} - {session.duration_min} min
-        </p>
-        <p className="text-sm text-muted">
-          {session.location}
-          {session.court_numbers ? ` - Court ${session.court_numbers}` : ""}
-        </p>
-        {session.notes && <p className="mt-1 text-sm text-muted">{session.notes}</p>}
+        <div className="mt-3 grid gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-4 sm:grid-cols-2">
+          <div className="flex items-start gap-2.5">
+            <span aria-hidden className="text-lg leading-none">🕒</span>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted">When</p>
+              <p className="text-sm font-bold text-heading">
+                {formatMalaysiaDateTime(session.starts_at)}
+              </p>
+              <p className="text-xs text-muted">{session.duration_min} min</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <span aria-hidden className="text-lg leading-none">📍</span>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Where</p>
+              <p className="text-sm font-bold text-heading">{session.location}</p>
+              {session.court_numbers && (
+                <p className="text-xs font-semibold text-primary">
+                  Court {session.court_numbers}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+        {session.notes && <p className="mt-2 text-sm text-muted">{session.notes}</p>}
       </div>
 
       <Card title={`Going (${going.length})`}>
@@ -116,6 +134,21 @@ export default async function GuestPage({
           </ul>
         )}
       </Card>
+
+      {maybe.length > 0 && (
+        <Card title={`Maybe (${maybe.length})`}>
+          <ul className="flex flex-wrap gap-2 text-sm">
+            {maybe.map((p) => (
+              <li
+                key={p.id}
+                className="rounded-lg bg-accent-bg px-2 py-1 font-medium text-accent-ink"
+              >
+                {p.name}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {hasCost && (
         <Card title="Cost summary">

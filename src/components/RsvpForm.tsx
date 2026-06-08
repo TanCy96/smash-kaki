@@ -17,6 +17,7 @@ export function RsvpForm({
   const [name, setName] = useState("");
   const [rsvp, setRsvp] = useState<Rsvp>("going");
   const [friends, setFriends] = useState<string[]>([]);
+  const [hasExisting, setHasExisting] = useState(false);
 
   useEffect(() => {
     const current = deviceToken();
@@ -26,6 +27,7 @@ export function RsvpForm({
       setName(mine.name);
       setRsvp(mine.rsvp);
       setFriends(mine.friends);
+      setHasExisting(true);
     });
   }, [guestToken]);
 
@@ -113,7 +115,7 @@ export function RsvpForm({
         </Button>
       </div>
 
-      <Button disabled={!token}>Submit RSVP</Button>
+      <Button disabled={!token}>{hasExisting ? "Update RSVP" : "Submit RSVP"}</Button>
     </form>
   );
 }
