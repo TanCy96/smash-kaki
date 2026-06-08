@@ -794,20 +794,21 @@ describe("removePollFriendAction", () => {
   });
 });
 
-describe("createSessionAction manager_id", () => {
+describe("createSessionAction", () => {
   beforeEach(() => {
     redirectMock.mockReset();
     redirectMock.mockImplementation((path: string) => {
       throw new Error(`redirect:${path}`);
     });
+    revalidatePathMock.mockReset();
     currentPlayerIdMock.mockReset();
     generateTokenMock.mockReset();
     generateTokenMock.mockReturnValueOnce("manage-tok").mockReturnValueOnce("guest-tok");
-    dbMock.createSession = vi.fn().mockResolvedValue({
+    dbMock.createSession.mockReset().mockResolvedValue({
       id: "session-1",
       manage_token: "manage-tok",
     });
-    dbMock.createSessionTimeOptions = vi.fn().mockResolvedValue([]);
+    dbMock.createSessionTimeOptions.mockReset().mockResolvedValue([]);
     dbMock.replaceTimeOptionVotes.mockReset().mockResolvedValue(undefined);
   });
 
