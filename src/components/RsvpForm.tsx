@@ -9,12 +9,14 @@ import { deviceToken } from "./device-token";
 export function RsvpForm({
   guestToken,
   disabled,
+  displayName = "",
 }: {
   guestToken: string;
   disabled: boolean;
+  displayName?: string;
 }) {
   const [token, setToken] = useState("");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(displayName);
   const [rsvp, setRsvp] = useState<Rsvp>("going");
   const [friends, setFriends] = useState<string[]>([]);
   const [hasExisting, setHasExisting] = useState(false);
@@ -24,7 +26,9 @@ export function RsvpForm({
     setToken(current);
     getMyRsvp(guestToken, current).then((mine) => {
       if (!mine) return;
-      setName(mine.name);
+      // A prior RSVP name takes priority over the signed-in account name, but
+      // don't clobber it when the caller only brought friends (mine.name = "").
+      if (mine.name) setName(mine.name);
       setRsvp(mine.rsvp);
       setFriends(mine.friends);
       setHasExisting(true);

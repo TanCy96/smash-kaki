@@ -7,10 +7,12 @@ import { Alert, Badge, Card, PageShell, StatRow } from "@/components/ui";
 import { computeCost } from "@/lib/cost";
 import { formatMalaysiaDateTime } from "@/lib/datetime";
 import {
+  getProfile,
   getSessionByGuestToken,
   listParticipants,
   listSessionTimeOptions,
 } from "@/lib/db";
+import { currentPlayerId } from "@/lib/supabase-auth";
 
 export default async function GuestPage({
   params,
@@ -24,6 +26,11 @@ export default async function GuestPage({
   const session = await getSessionByGuestToken(guestToken);
   if (!session) notFound();
 
+  const playerId = await currentPlayerId();
+  const displayName = playerId
+    ? ((await getProfile(playerId))?.display_name ?? "")
+    : "";
+
   if (session.lifecycle === "draft") {
     const options = await listSessionTimeOptions(session.id);
     const clientOptions = options.map((option) => ({
@@ -33,7 +40,7 @@ export default async function GuestPage({
 
     return (
       <PageShell
-        headerRight={<AuthNav />}
+        headerRight={<AuthNav playerId={playerId} displayName={displayName} />}
         aside={
           <Card highlight title="Pick your available times">
             {submitted === "1" && <Alert tone="success">Availability saved.</Alert>}
@@ -42,6 +49,7 @@ export default async function GuestPage({
                 guestToken={guestToken}
                 options={clientOptions}
                 disabled={session.status === "cancelled"}
+                displayName={displayName}
               />
             </div>
           </Card>
@@ -80,12 +88,16 @@ export default async function GuestPage({
 
   return (
     <PageShell
-      headerRight={<AuthNav />}
+      headerRight={<AuthNav playerId={playerId} displayName={displayName} />}
       aside={
         <Card highlight title="Your RSVP">
           {submitted === "1" && <Alert tone="success">RSVP submitted.</Alert>}
           <div className="mt-3">
-            <RsvpForm guestToken={guestToken} disabled={session.status === "cancelled"} />
+            <RsvpForm
+              guestToken={guestToken}
+              disabled={session.status === "cancelled"}
+              displayName={displayName}
+            />
           </div>
         </Card>
       }

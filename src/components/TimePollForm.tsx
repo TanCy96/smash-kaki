@@ -11,13 +11,15 @@ export function TimePollForm({
   guestToken,
   options,
   disabled,
+  displayName = "",
 }: {
   guestToken: string;
   options: SessionTimeOptionWithVotes[];
   disabled: boolean;
+  displayName?: string;
 }) {
   const [token, setToken] = useState("");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(displayName);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [friends, setFriends] = useState<string[]>([]);
 
